@@ -1,0 +1,10 @@
+.settings-page { padding-top: 8rpx; }
+.settings-title { margin-top: 8rpx; }
+.setting-list { overflow: hidden; }
+.setting-row, .info-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; min-height: 136rpx; padding: 0 30rpx; }
+.setting-row-line { border-top: 1rpx solid #edf0f3; }
+.setting-name { color: #334155; font-size: 29rpx; font-weight: 600; }
+.setting-detail { margin-top: 10rpx; color: #7b8794; font-size: 23rpx; }
+.setting-disabled .setting-name, .setting-disabled .setting-detail { color: #aab4c0; }
+.info-value { color: #52687a; font-size: 27rpx; }
+.notice { margin: 24rpx 14rpx; color: #94a3b8; font-size: 23rpx; line-height: 1.7; }

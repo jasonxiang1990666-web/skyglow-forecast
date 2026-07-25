@@ -1,0 +1,34 @@
+page {
+  min-height: 100%;
+  background: #f7fafc;
+  color: #1f2937;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+}
+
+button::after {
+  border: 0;
+}
+
+.page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 28rpx 28rpx 48rpx;
+}
+
+.card {
+  box-sizing: border-box;
+  border-radius: 28rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 32rpx rgba(51, 65, 85, 0.06);
+}
+
+.muted {
+  color: #7b8794;
+}
+
+.section-title {
+  margin: 40rpx 0 20rpx;
+  color: #334155;
+  font-size: 28rpx;
+  font-weight: 600;
+}

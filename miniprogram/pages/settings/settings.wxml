@@ -1,0 +1,39 @@
+<view class="page settings-page">
+  <view class="section-title settings-title">明日提醒</view>
+  <view class="setting-list card">
+    <view class="setting-row">
+      <view>
+        <view class="setting-name">订阅下一次晚间提醒</view>
+        <view class="setting-detail">允许后将在下一次 20:00 推送；发送后需再次订阅</view>
+      </view>
+      <switch checked="{{skyReminder}}" color="#c76a2c" bindchange="onSkyReminderChange" />
+    </view>
+    <view class="setting-row setting-row-line {{!skyReminder ? 'setting-disabled' : ''}}">
+      <view>
+        <view class="setting-name">仅在值得期待时提醒</view>
+        <view class="setting-detail">概率达到 70% 才发送天空提醒</view>
+      </view>
+      <switch checked="{{onlyHighProbability}}" disabled="{{!skyReminder}}" color="#c76a2c" bindchange="onOnlyHighChange" />
+    </view>
+    <view class="setting-row setting-row-line {{!skyReminder ? 'setting-disabled' : ''}}">
+      <view>
+        <view class="setting-name">明日降雨提醒</view>
+        <view class="setting-detail">有明显降雨风险时主动提醒</view>
+      </view>
+      <switch checked="{{rainReminder}}" disabled="{{!skyReminder}}" color="#356b94" bindchange="onRainReminderChange" />
+    </view>
+  </view>
+
+  <view class="section-title">提醒信息</view>
+  <view class="setting-list card">
+    <view class="info-row" bindtap="goCities" role="button" aria-label="选择默认城市">
+      <view><view class="setting-name">默认城市</view><view class="setting-detail">首页与订阅消息使用此城市</view></view>
+      <view class="info-value">{{city}} ›</view>
+    </view>
+    <view class="info-row setting-row-line">
+      <view><view class="setting-name">提醒时间</view><view class="setting-detail">首版暂不支持修改</view></view>
+      <view class="info-value">20:00</view>
+    </view>
+  </view>
+  <view class="notice">开启前需在微信中主动授权订阅消息。普通订阅消息每次发送后需再次订阅。</view>
+</view>

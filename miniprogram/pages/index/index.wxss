@@ -1,0 +1,66 @@
+.topbar, .city-picker, .hero, .sky-row, .rain-row, .trend-row {
+  display: flex;
+  align-items: center;
+}
+
+.index-page { min-height: 100vh; }
+.custom-nav { box-sizing: border-box; padding-left: 28rpx; }
+.page-content { padding: 18rpx 28rpx 48rpx; }
+.topbar {
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.city-picker { gap: 10rpx; }
+.city-name { font-size: 40rpx; font-weight: 600; }
+.city-arrow { color: #64748b; font-size: 34rpx; }
+.settings-link { color: #52687a; font-size: 26rpx; }
+.date-line { color: #718096; font-size: 26rpx; }
+.window-heading { display: flex; justify-content: space-between; margin: 26rpx 4rpx 16rpx; color: #334155; font-size: 30rpx; font-weight: 600; }
+.window-time { color: #7b8794; font-size: 24rpx; font-weight: 400; }
+.next-window-heading { margin-top: 36rpx; }
+
+.hero {
+  justify-content: space-between;
+  min-height: 248rpx;
+  margin-top: 18rpx;
+  padding: 32rpx;
+  background: linear-gradient(135deg, #fff3e2, #fee8d5 56%, #e9eefb);
+}
+
+.hero-low { background: #f1f5f9; }
+.hero-medium { background: linear-gradient(135deg, #f8f4ec, #f6efe4); }
+.hero-type { color: #475569; font-size: 30rpx; }
+.hero-score { margin-top: 8rpx; color: #9a4e20; font-size: 84rpx; font-weight: 600; line-height: 1; }
+.hero-low .hero-score { color: #64748b; }
+.hero-label { margin-top: 16rpx; color: #7c3f1d; font-size: 30rpx; font-weight: 600; }
+.hero-low .hero-label { color: #64748b; }
+.hero-detail { max-width: 248rpx; color: #5d6470; font-size: 24rpx; line-height: 1.8; text-align: right; }
+.direction { margin-top: 12rpx; color: #9a4e20; font-weight: 600; }
+.sky-direction { font-size: 22rpx; }
+.outlook-quiet { margin-top: 18rpx; padding: 28rpx 30rpx; background: #f1f5f9; }
+.outlook-title { color: #475569; font-size: 30rpx; font-weight: 600; }
+.outlook-detail { margin-top: 10rpx; color: #7b8794; font-size: 24rpx; }
+
+.sky-list, .trend-list { overflow: hidden; }
+.sky-row, .rain-row { justify-content: space-between; padding: 28rpx 30rpx; }
+.sky-row + .sky-row, .trend-row + .trend-row { border-top: 1rpx solid #edf0f3; }
+.sky-name, .rain-title { color: #293548; font-size: 30rpx; font-weight: 600; }
+.sky-label { margin-left: 10rpx; font-size: 22rpx; font-weight: 400; }
+.sky-high { color: #b45309; }
+.sky-medium { color: #8a6a3f; }
+.sky-low { color: #7b8794; }
+.sky-reason, .rain-detail { margin-top: 10rpx; color: #7b8794; font-size: 24rpx; }
+.sky-score, .rain-score { color: #475569; font-size: 36rpx; font-weight: 600; }
+.rain-active { background: #f2f7fb; }
+.rain-active .rain-score { color: #356b94; }
+
+.trend-row { min-height: 88rpx; padding: 0 26rpx; color: #536273; font-size: 24rpx; }
+.trend-day { width: 86rpx; color: #334155; font-weight: 600; }
+.trend-weather { width: 104rpx; }
+.trend-rain { margin-left: auto; color: #7b8794; }
+.updated-at { margin-top: 22rpx; color: #9aa5b1; font-size: 22rpx; text-align: center; }
+.warning-card { margin-top: 42rpx; padding: 30rpx; border-radius: 28rpx; background: #fff1f0; color: #a53b36; }
+.warning-title { font-size: 32rpx; font-weight: 600; }
+.warning-detail { margin-top: 12rpx; font-size: 25rpx; line-height: 1.7; }
+.loading-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }

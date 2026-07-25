@@ -1,0 +1,38 @@
+<view class="page city-page">
+  <view class="location-card card" bindtap="useCurrentLocation" role="button" aria-label="使用当前位置">
+    <view>
+      <view class="location-title">使用当前位置</view>
+      <view class="location-detail">仅在你主动点击后获取定位，用于匹配当地天气</view>
+    </view>
+    <view class="location-action">定位</view>
+  </view>
+
+  <view class="current-city card">
+    <view>
+      <view class="current-label">当前默认城市</view>
+      <view class="current-name">{{currentCity}}</view>
+    </view>
+    <view class="current-note">决定首页与晚间提醒</view>
+  </view>
+
+  <view class="search-box">
+    <text class="search-mark">⌕</text>
+    <input value="{{query}}" placeholder="搜索城市或省份" placeholder-class="search-placeholder" bindinput="onSearchInput" />
+  </view>
+
+  <view wx:if="{{!query}}" class="section-title">常用城市</view>
+  <view wx:if="{{!query}}" class="common-grid">
+    <view wx:for="{{commonCities}}" wx:key="name" class="city-chip {{item.name === currentCity ? 'city-chip-selected' : ''}}" data-city="{{item.name}}" bindtap="selectCity">
+      {{item.name}}
+    </view>
+  </view>
+
+  <view class="section-title">{{query ? '搜索结果' : '全部省会城市'}}</view>
+  <view class="city-list card">
+    <view wx:for="{{cityOptions}}" wx:key="name" class="city-row" data-city="{{item.name}}" bindtap="selectCity">
+      <view><text class="city-row-name">{{item.name}}</text><text class="city-province">{{item.province}}</text></view>
+      <text wx:if="{{item.name === currentCity}}" class="selected">当前城市</text>
+    </view>
+    <view wx:if="{{!cityOptions.length}}" class="empty-result">未找到匹配城市</view>
+  </view>
+</view>

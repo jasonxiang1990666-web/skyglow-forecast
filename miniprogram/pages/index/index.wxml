@@ -1,0 +1,87 @@
+<view class="index-page" wx:if="{{!loading && forecast}}">
+  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px; padding-right: {{menuRightSpace}}px;">
+    <view class="topbar" style="height: {{navContentHeight}}px;">
+    <view class="city-picker" bindtap="goCities" role="button" aria-label="切换城市">
+      <text class="city-name">{{city}}</text><text class="city-arrow">⌄</text>
+    </view>
+      <view class="settings-link" bindtap="goSettings" role="button" aria-label="提醒设置">设置</view>
+    </view>
+  </view>
+
+  <view class="page-content">
+    <view wx:if="{{forecast.warning}}" class="warning-card">
+      <view class="warning-title">安全提醒 · {{forecast.warning.title}}</view>
+      <view class="warning-detail">{{forecast.warning.detail}}</view>
+    </view>
+
+    <view class="sky-content">
+      <view wx:if="{{forecast.allLow}}" class="outlook-quiet card">
+        <view class="outlook-title">接下来24小时天空较平淡</view>
+        <view class="outlook-detail">云层与光照条件有限，建议以天气安排为主。</view>
+      </view>
+
+      <view class="window-heading">
+        <text>{{forecast.primaryWindow.title}}</text><text class="window-time">建议 {{forecast.primaryWindow.time}}</text>
+      </view>
+      <view class="hero card hero-{{forecast.primaryWindow.hero.tier}}">
+        <view>
+          <view class="hero-type">{{forecast.primaryWindow.hero.displayTitle}}</view>
+          <view class="hero-score">{{forecast.primaryWindow.hero.score}}%</view>
+          <view class="hero-label">{{forecast.primaryWindow.hero.label}}</view>
+        </view>
+        <view class="hero-detail">
+          <view>{{forecast.primaryWindow.hero.reason}}</view>
+          <view wx:if="{{forecast.primaryWindow.hero.showDirection && !forecast.warning}}" class="direction">{{forecast.primaryWindow.hero.direction}}</view>
+        </view>
+      </view>
+
+      <view wx:if="{{forecast.primaryWindow.secondarySkies.length}}" class="sky-list card">
+        <view wx:for="{{forecast.primaryWindow.secondarySkies}}" wx:key="type" class="sky-row">
+          <view>
+            <view class="sky-name">{{item.type}} <text class="sky-label sky-{{item.tier}}">{{item.label}}</text></view>
+            <view class="sky-reason">{{item.time}} · {{item.reason}}</view>
+          </view>
+          <view class="sky-score">{{item.score}}%</view>
+        </view>
+      </view>
+
+      <view class="window-heading next-window-heading">
+        <text>{{forecast.secondaryWindow.title}}</text><text class="window-time">建议 {{forecast.secondaryWindow.time}}</text>
+      </view>
+      <view class="sky-list card">
+        <view wx:for="{{forecast.secondaryWindow.skies}}" wx:key="type" class="sky-row">
+          <view>
+            <view class="sky-name">{{item.type}} <text class="sky-label sky-{{item.tier}}">{{item.label}}</text></view>
+            <view class="sky-reason">{{item.time}} · {{item.reason}}</view>
+            <view wx:if="{{item.showDirection && !forecast.warning}}" class="direction sky-direction">{{item.direction}}</view>
+          </view>
+          <view class="sky-score">{{item.score}}%</view>
+        </view>
+      </view>
+
+      <view wx:if="{{forecast.hasRain}}" class="rain-section">
+        <view class="section-title">降雨提醒</view>
+        <view class="rain-row card rain-active">
+        <view>
+            <view class="rain-title">未来24小时有雨</view>
+            <view class="rain-detail">{{forecast.rain.primary.time}} · {{forecast.rain.primary.text}}</view>
+          </view>
+          <view class="rain-score">{{forecast.rain.primary.probability}}%</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section-title">未来三天</view>
+    <view class="trend-list card">
+      <view wx:for="{{forecast.trend}}" wx:key="day" class="trend-row">
+        <text class="trend-day">{{item.day}}</text>
+        <text class="trend-weather">{{item.weather}}</text>
+        <text>{{item.temperature}}</text>
+        <text class="trend-rain">降水 {{item.precipitation}}</text>
+      </view>
+    </view>
+    <view class="updated-at">{{forecast.updatedAt}}</view>
+  </view>
+</view>
+
+<view wx:else class="loading-page">正在查看霞光预见…</view>

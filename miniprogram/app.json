@@ -1,0 +1,21 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/cities/cities",
+    "pages/settings/settings"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#F7FAFC",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "霞光预见",
+    "backgroundColor": "#F7FAFC",
+    "backgroundTextStyle": "light"
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于在你主动点击定位时识别所在城市，展示当地天气与霞况预报"
+    }
+  },
+  "requiredPrivateInfos": ["getLocation"],
+  "sitemapLocation": "sitemap.json"
+}
