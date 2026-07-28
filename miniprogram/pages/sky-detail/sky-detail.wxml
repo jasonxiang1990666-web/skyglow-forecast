@@ -1,0 +1,67 @@
+<view wx:if="{{!loading && skyWindow && selected}}" class="detail-page">
+  <view class="detail-header">
+    <view class="detail-city">{{city}}</view>
+    <view class="detail-period">{{skyWindow.title}} · {{selected.type}}</view>
+  </view>
+
+  <view class="countdown-card card countdown-{{countdown.state}}">
+    <view class="countdown-title">{{countdown.title}}</view>
+    <view class="countdown-value">{{countdown.value}}</view>
+    <view class="countdown-detail">{{countdown.detail}}</view>
+  </view>
+
+  <view wx:if="{{warning}}" class="warning-card">
+    <view class="warning-title">安全提醒 · {{warning.title}}</view>
+    <view class="warning-detail">{{warning.detail}}</view>
+  </view>
+
+  <view class="summary-card card summary-{{selected.tier}}">
+    <view>
+      <view class="summary-type">{{selected.type}}</view>
+      <view class="summary-score">{{selected.score}}%</view>
+      <view class="summary-label">{{selected.label}}</view>
+    </view>
+    <view class="summary-right">
+      <view>{{skyWindow.time}}</view>
+      <view class="summary-reason">{{selected.reason}}</view>
+      <view wx:if="{{selected.showDirection && !warning}}" class="direction">{{selected.direction}}</view>
+    </view>
+  </view>
+
+  <view class="section-title">观赏建议</view>
+  <view class="advice-card card">{{advice}}</view>
+  <view wx:if="{{skyWindow.rainImpact}}" class="rain-impact">{{skyWindow.rainImpact}}</view>
+
+  <view class="section-title">观赏条件分析</view>
+  <view class="factor-card card">
+    <view wx:if="{{skyWindow.factors.favorable.length}}" class="factor-group">
+      <view class="factor-heading factor-good">有利条件</view>
+      <view wx:for="{{skyWindow.factors.favorable}}" wx:key="*this" class="factor-item">{{item}}</view>
+    </view>
+    <view wx:if="{{skyWindow.factors.unfavorable.length}}" class="factor-group factor-group-last">
+      <view class="factor-heading factor-bad">需要留意</view>
+      <view wx:for="{{skyWindow.factors.unfavorable}}" wx:key="*this" class="factor-item">{{item}}</view>
+    </view>
+  </view>
+
+  <view class="timeline-heading">
+    <text class="section-title">时段走势</text><text class="timeline-note">高亮为观赏窗口</text>
+  </view>
+  <view wx:if="{{skyWindow.hourlyTimeline.length}}" class="timeline-card card">
+    <view wx:for="{{skyWindow.hourlyTimeline}}" wx:key="timestamp" class="hourly-row {{item.isWindow ? 'hourly-window' : ''}}">
+      <text class="hour-time">{{item.time}}</text>
+      <text class="hour-weather">{{item.weather}}</text>
+      <text class="hour-probability">降水 {{item.probability}}%</text>
+      <text class="hour-cloud">云量 {{item.cloud}}%</text>
+    </view>
+  </view>
+  <view wx:else class="timeline-empty card">暂未获得该时段的逐小时预报</view>
+  <view class="updated-at">{{updatedAt}}</view>
+</view>
+
+<view wx:elif="{{loadError}}" class="error-page">
+  <view>{{loadError}}</view>
+  <view class="retry-button" bindtap="retry">重新加载</view>
+</view>
+
+<view wx:else class="loading-page">正在查看霞况详情…</view>

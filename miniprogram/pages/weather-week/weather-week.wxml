@@ -1,0 +1,37 @@
+<view wx:if="{{!loading && days.length}}" class="week-page">
+  <view class="week-header">
+    <view class="week-city">{{city}}</view>
+    <view class="week-subtitle">未来两周天气趋势</view>
+  </view>
+
+  <view class="week-intro card">
+    <view class="intro-title">降雨参考</view>
+    <view class="intro-detail">前7天显示当日最高降水概率与预计降水量；第8–14天仅提供预计降水量。</view>
+  </view>
+
+  <view class="day-list card">
+    <block wx:for="{{days}}" wx:key="date">
+      <view class="day-row {{item.hasRain ? 'day-rain' : ''}}">
+        <view class="day-main">
+          <view class="day-date"><text class="day-label">{{item.day}}</text><text class="date-label">{{item.dateText}}</text></view>
+          <view class="day-weather">{{item.weather}}</view>
+          <view class="day-temperature">{{item.temperature}}</view>
+        </view>
+        <view class="rain-data">
+          <view class="rain-metric"><text>最高降水概率</text><text class="rain-value">{{item.probabilityText}}</text></view>
+          <view class="rain-metric"><text>预计降水</text><text class="rain-value">{{item.precipitationText}}</text></view>
+        </view>
+      </view>
+      <view wx:if="{{index === 6}}" class="long-range-note">第8–14天属于中长期预报，天气变化较大，请临近日期再确认。</view>
+    </block>
+  </view>
+
+  <view class="updated-at">{{updatedAt}}</view>
+</view>
+
+<view wx:elif="{{loadError}}" class="error-page">
+  <view>{{loadError}}</view>
+  <view class="retry-button" bindtap="retry">重新加载</view>
+</view>
+
+<view wx:else class="loading-page">正在查看未来两周天气…</view>

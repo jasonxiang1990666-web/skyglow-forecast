@@ -27,6 +27,7 @@
   padding: 32rpx;
   background: linear-gradient(135deg, #fff3e2, #fee8d5 56%, #e9eefb);
 }
+.hero, .sky-row { cursor: pointer; }
 
 .hero-low { background: #f1f5f9; }
 .hero-medium { background: linear-gradient(135deg, #f8f4ec, #f6efe4); }
@@ -73,6 +74,10 @@
 .rain-node-active { width: 16rpx; height: 16rpx; margin: 10rpx 0 8rpx; background: #4d8db8; box-shadow: 0 0 0 5rpx #d9edf8; }
 .sky-rain-impact { margin: 12rpx 8rpx 0; color: #a65d27; font-size: 23rpx; line-height: 1.6; }
 
+.trend-heading { display: flex; align-items: center; justify-content: space-between; margin: 40rpx 4rpx 20rpx; cursor: pointer; }
+.trend-heading .section-title { margin: 0; }
+.trend-link { color: #5680a2; font-size: 23rpx; }
+.trend-list { cursor: pointer; }
 .trend-row { min-height: 88rpx; padding: 0 26rpx; color: #536273; font-size: 24rpx; }
 .trend-day { width: 86rpx; color: #334155; font-weight: 600; }
 .trend-weather { width: 104rpx; }
