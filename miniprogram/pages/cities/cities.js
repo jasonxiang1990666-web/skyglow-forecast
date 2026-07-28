@@ -45,7 +45,33 @@ const SEARCH_CITIES = CAPITAL_CITIES.concat(
   COMMON_CITIES.filter((commonCity) => !CAPITAL_CITIES.some((city) => city.name === commonCity.name))
 )
 
+function normalizeSearchText(value) {
+  return String(value || '').replace(/\s/g, '').replace(/特别行政区|自治区|省|市/g, '')
+}
+
+function findLocalCities(query) {
+  const normalizedQuery = normalizeSearchText(query)
+  return SEARCH_CITIES.filter((city) => {
+    const cityFirst = normalizeSearchText(`${city.name}${city.province}`)
+    const provinceFirst = normalizeSearchText(`${city.province}${city.name}`)
+    return cityFirst.includes(normalizedQuery) || provinceFirst.includes(normalizedQuery)
+  })
+}
+
+function mergeCities(primary, secondary) {
+  const seen = new Set()
+  return primary.concat(secondary).filter((city) => {
+    const key = city.id || `${city.name}-${city.province}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 Page({
+  searchTimer: null,
+  searchSequence: 0,
+
   data: {
     currentCity: '',
     query: '',
@@ -59,10 +85,30 @@ Page({
 
   onSearchInput(event) {
     const query = event.detail.value.trim()
-    const cityOptions = query
-      ? SEARCH_CITIES.filter((city) => `${city.name}${city.province}`.includes(query))
-      : CAPITAL_CITIES
+    const cityOptions = query ? findLocalCities(query) : CAPITAL_CITIES
     this.setData({ query, cityOptions })
+
+    if (this.searchTimer) clearTimeout(this.searchTimer)
+    const sequence = ++this.searchSequence
+    if (!query) return
+
+    this.searchTimer = setTimeout(async () => {
+      try {
+        const response = await wx.cloud.callFunction({
+          name: 'forecast',
+          data: { action: 'searchCity', keyword: query }
+        })
+        if (sequence !== this.searchSequence) return
+        const remoteCities = (response.result && response.result.cities) || []
+        this.setData({ cityOptions: mergeCities(remoteCities, findLocalCities(query)) })
+      } catch (error) {
+        // 云端搜索不可用时仍保留本地省会城市搜索结果。
+      }
+    }, 300)
+  },
+
+  onUnload() {
+    if (this.searchTimer) clearTimeout(this.searchTimer)
   },
 
   useCurrentLocation() {

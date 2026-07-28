@@ -1,5 +1,5 @@
 const cloud = require('wx-server-sdk')
-const { lookupCity, lookupCoordinates, getWeather, getAlerts } = require('./qweather')
+const { lookupCity, lookupCoordinates, searchCities, getWeather, getAlerts } = require('./qweather')
 const { buildForecastView } = require('./scoring')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
@@ -15,6 +15,10 @@ exports.main = async (event) => {
   if (event.action === 'resolveLocation') {
     const location = await lookupCoordinates(event.latitude, event.longitude)
     return { city: location.adm2 || location.name }
+  }
+
+  if (event.action === 'searchCity') {
+    return { cities: await searchCities(event.keyword) }
   }
 
   const city = String(event.city || '').trim()
