@@ -1,0 +1,23 @@
+.map-page { min-height: 100vh; padding: 34rpx 28rpx 60rpx; box-sizing: border-box; }
+.map-title { color: #26384b; font-size: 38rpx; font-weight: 600; }
+.map-subtitle { margin-top: 12rpx; color: #8290a0; font-size: 24rpx; }
+.card { border-radius: 28rpx; background: #fff; box-shadow: 0 16rpx 36rpx rgba(70, 90, 110, .07); }
+.full-map { position: relative; height: 780rpx; margin-top: 30rpx; overflow: hidden; background: linear-gradient(150deg, #edf3f7, #fafcfd); }
+.full-map::before { position: absolute; top: 100rpx; right: 120rpx; bottom: 118rpx; left: 108rpx; border: 3rpx solid #d4e0e8; border-radius: 48% 42% 50% 38%; content: ''; transform: rotate(-4deg); }
+.full-map::after { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background-image: linear-gradient(#dce5ec 1rpx, transparent 1rpx), linear-gradient(90deg, #dce5ec 1rpx, transparent 1rpx); background-size: 58rpx 58rpx; content: ''; opacity: .38; }
+.full-map-city-wrap { position: absolute; z-index: 1; }
+.full-map-point { width: 28rpx; height: 28rpx; margin: -14rpx 0 0 -14rpx; border: 4rpx solid rgba(255, 255, 255, .86); border-radius: 50%; box-sizing: border-box; box-shadow: 0 3rpx 9rpx rgba(60, 75, 90, .22); }
+.full-map-city-label { position: absolute; top: 12rpx; left: 12rpx; color: #526579; font-size: 20rpx; line-height: 1; white-space: nowrap; }
+.full-map-water { position: absolute; z-index: 1; right: 36rpx; bottom: 30rpx; color: #8fa4b6; font-size: 24rpx; font-weight: 600; letter-spacing: 5rpx; }
+.legend-card { margin-top: 28rpx; padding: 26rpx 28rpx; }
+.legend-title { color: #475569; font-size: 25rpx; font-weight: 600; }
+.legend-row { display: flex; gap: 28rpx; margin-top: 18rpx; color: #6d7c8d; font-size: 22rpx; }
+.legend-row view { display: flex; align-items: center; }
+.legend-dot { display: inline-block; width: 15rpx; height: 15rpx; margin-right: 8rpx; border-radius: 50%; }
+.legend-high { background: #c77a3a; }
+.legend-medium { background: #d6aa59; }
+.legend-low { background: #aab9c7; }
+.map-note { margin: 26rpx 8rpx 0; color: #718096; font-size: 23rpx; line-height: 1.75; }
+.updated-at { margin-top: 18rpx; color: #9aa5b1; font-size: 21rpx; text-align: center; }
+.state-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }
+.retry-button { display: inline-block; margin-top: 28rpx; padding: 16rpx 34rpx; border-radius: 999rpx; background: #eaf3f9; color: #356b94; font-size: 25rpx; }

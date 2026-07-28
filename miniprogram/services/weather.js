@@ -1,5 +1,18 @@
-const { build24HourView } = require('../utils/sky-score')
+const { build24HourView, getTier } = require('../utils/sky-score')
 const { USE_CLOUD_FORECAST } = require('../config/runtime')
+
+function withTimeout(promise, milliseconds) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('全国城市概览请求超时')), milliseconds)
+    promise.then((result) => {
+      clearTimeout(timer)
+      resolve(result)
+    }).catch((error) => {
+      clearTimeout(timer)
+      reject(error)
+    })
+  })
+}
 
 const demoForecast = {
   date: '接下来24小时',
@@ -35,6 +48,33 @@ const demoForecast = {
   ]
 }
 
+function groupSkyWindows(forecast) {
+  const windows = forecast.skyWindows || [forecast.primaryWindow, forecast.secondaryWindow].filter(Boolean)
+  const skyWindows = windows.map((skyWindow) => {
+    const skies = Array.isArray(skyWindow.skies) ? skyWindow.skies.map((item) => {
+      if (item.tier && item.label) return item
+      const tier = getTier(Number(item.score) || 0)
+      return { ...item, tier: tier.key, label: tier.label, showDirection: tier.key === 'high' && Boolean(item.direction) }
+    }) : []
+    const primarySky = skyWindow.primarySky || skies.find((item) => item.type === '朝霞' || item.type === '晚霞') || skyWindow.hero || skies[0]
+    const fireCloud = skyWindow.fireCloud || skies.find((item) => item.type === '火烧云') || null
+    return {
+      ...skyWindow,
+      skies,
+      primarySky,
+      fireCloud,
+      hero: { ...primarySky, displayTitle: primarySky.displayTitle || primarySky.type },
+      secondarySkies: fireCloud ? [fireCloud] : []
+    }
+  })
+  return {
+    ...forecast,
+    skyWindows,
+    primaryWindow: skyWindows[0],
+    secondaryWindow: skyWindows[1] || skyWindows[0]
+  }
+}
+
 function getNext24HourForecast(city) {
   if (USE_CLOUD_FORECAST) {
     return wx.cloud.callFunction({
@@ -44,7 +84,7 @@ function getNext24HourForecast(city) {
       if (!response.result || !response.result.primaryWindow) {
         throw new Error('云函数未返回有效预报')
       }
-      return response.result
+      return groupSkyWindows(response.result)
     })
   }
 
@@ -96,4 +136,61 @@ function getTwoWeekWeatherForecast(city) {
   })
 }
 
-module.exports = { getNext24HourForecast, getTwoWeekWeatherForecast }
+function getNationalCityOverview(city, options = {}) {
+  if (USE_CLOUD_FORECAST) {
+    return withTimeout(wx.cloud.callFunction({
+      name: 'forecast',
+      data: {
+        action: 'nationalCityOverview',
+        city,
+        scene: options.scene,
+        targetAt: options.targetAt
+      }
+    }), 15000).then((response) => {
+      const result = response.result
+      if (!result || !Array.isArray(result.cities) || !result.cities.length) {
+        throw new Error('云函数未返回有效的全国城市概览')
+      }
+      return result
+    })
+  }
+
+  const levels = ['low', 'medium', 'high', 'medium', 'low', 'medium', 'high']
+  const colors = { low: '#aab9c7', medium: '#d6aa59', high: '#c77a3a' }
+  return Promise.resolve({
+    model: '城市概览',
+    title: options.scene === 'sunrise' ? '全国重点城市朝霞概览' : '全国重点城市晚霞概览',
+    validAt: '演示时段',
+    updatedAt: '演示数据',
+    cities: levels.map((level, index) => ({
+      name: ['乌鲁木齐', '北京', '西安', '成都', '上海', '广州', '海口'][index],
+      left: 24 + index * 8,
+      top: 26 + (index % 3) * 17,
+      score: level === 'high' ? 74 : level === 'medium' ? 57 : 36,
+      key: level,
+      label: level === 'high' ? '值得期待' : level === 'medium' ? '不妨看看' : '不太明显',
+      color: colors[level]
+    })),
+    note: '演示重点城市概览；本地逐小时预报优先。'
+  })
+}
+
+function getNearbyViewingSpots({ latitude, longitude, scene }) {
+  return withTimeout(wx.cloud.callFunction({
+    name: 'forecast',
+    data: {
+      action: 'nearbyViewingSpots',
+      latitude,
+      longitude,
+      scene
+    }
+  }), 9000).then((response) => {
+    const result = response.result
+    if (!result || !Array.isArray(result.spots)) {
+      throw new Error('云函数未返回有效的地点推荐')
+    }
+    return result
+  })
+}
+
+module.exports = { getNext24HourForecast, getTwoWeekWeatherForecast, getNationalCityOverview, getNearbyViewingSpots }

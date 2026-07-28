@@ -15,7 +15,11 @@
 - 启动小程序时自动检测新版本；新版本下载完成后，用户可选择立即重启更新或稍后更新。
 - 点击朝霞、晚霞或火烧云卡片可进入霞况详情页，查看通俗的有利/不利因素、观赏窗口前后小时走势与降雨影响。
 - 详情页顶部展示观赏倒计时；进入建议时段后自动切换为剩余观赏时间，窗口结束后自动刷新至下一次可预报霞况。
+- 霞况详情页可在用户主动授权定位后，推荐附近 5 公里内、最多 10 公里的公园与观景点；点击“去导航”将打开微信内置地图。
 - 首页“未来三天”卡片可进入未来两周天气页；前7天可查看每日天气、温度、当日最高降水概率和预计降水量，第8–14天展示天气、温度与预计降水量。
+- 首页主霞况卡展示距日出或日落的动态倒计时与空气通透度；霞况详情页展示 AQI、PM2.5 和建议时段预报能见度，并明确数据参考范围。
+
+- 霞况详情页会在有可用数据时展示全国重点城市霞况概览；可点击查看大图。概览基于重点城市的逐小时预报汇总，本地详情预报优先。
 
 ## 本地运行
 
@@ -26,7 +30,7 @@
 ## 接入真实数据前需要完成
 
 1. 在微信开发者工具中开通云开发环境，并上传部署 `cloudfunctions/forecast` 云函数。每次更新天气计算规则（包括本次 1.0.3 降雨动态）后，都需要重新部署这个云函数。
-2. 在云函数环境变量中填写 `QWEATHER_API_HOST`、`QWEATHER_CREDENTIAL_ID`、`QWEATHER_PROJECT_ID` 和 `QWEATHER_PRIVATE_KEY`；示例见 `cloudfunctions/forecast/.env.example`。云函数会使用私钥自动生成短期 JWT，API Host 必须使用和风天气控制台提供的专属地址。
+2. 在云函数环境变量中填写 `QWEATHER_API_HOST`、`QWEATHER_CREDENTIAL_ID`、`QWEATHER_PROJECT_ID` 和 `QWEATHER_PRIVATE_KEY`；示例见 `cloudfunctions/forecast/.env.example`。云函数会使用私钥自动生成短期 JWT，API Host 必须使用和风天气控制台提供的专属地址。若要启用“附近开阔观赏点”，还需配置腾讯位置服务的 `TENCENT_MAP_KEY`（WebService API Key）。
 3. 将 `miniprogram/config/runtime.js` 中的 `USE_CLOUD_FORECAST` 改为 `true`，小程序即会调用云函数而非演示数据。
 4. 在 `miniprogram/services/subscription.js` 填入微信公众平台审核通过的订阅消息模板 ID，并由后端在前一晚 20:00 推送。
 

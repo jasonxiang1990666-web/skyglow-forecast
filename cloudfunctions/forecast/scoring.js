@@ -144,6 +144,43 @@ function buildFactors(metrics) {
   return { favorable: favorable.slice(0, 3), unfavorable: unfavorable.slice(0, 3) }
 }
 
+function buildAirReference(airQuality, visibility) {
+  const indexes = airQuality && Array.isArray(airQuality.indexes) ? airQuality.indexes : []
+  const pollutants = airQuality && Array.isArray(airQuality.pollutants) ? airQuality.pollutants : []
+  const index = indexes.find((item) => item.code === 'cn-mee') || indexes[0] || {}
+  const pm25 = pollutants.find((item) => item.code === 'pm2p5') || {}
+  const aqi = number(index.aqi, null)
+  const pm25Value = number(pm25.concentration && pm25.concentration.value, null)
+  const roundedVisibility = Math.round(number(visibility, 10))
+  const hasAirData = Number.isFinite(aqi) || Number.isFinite(pm25Value)
+
+  let level = 'good'
+  let label = '良好'
+  let description = '空气较通透，远处天空层次更容易显现'
+  if (roundedVisibility < 5 || aqi >= 151 || pm25Value >= 75) {
+    level = 'poor'
+    label = '较差'
+    description = '雾霾或低能见度可能削弱天空色彩'
+  } else if (roundedVisibility < 8 || aqi >= 101 || pm25Value >= 35) {
+    level = 'medium'
+    label = '一般'
+    description = '空气通透度一般，远处色彩可能不够清晰'
+  }
+
+  return {
+    level,
+    label,
+    description,
+    aqiText: Number.isFinite(aqi) ? String(Math.round(aqi)) : '暂不可用',
+    pm25Text: Number.isFinite(pm25Value) ? `${Math.round(pm25Value)} μg/m³` : '暂不可用',
+    visibilityText: `${roundedVisibility}km`,
+    hasAirData,
+    note: hasAirData
+      ? 'AQI 与 PM2.5 为当前空气质量参考；能见度为建议观赏时段预报。'
+      : '当前 AQI 与 PM2.5 暂不可用；通透度仅参考建议观赏时段的能见度。'
+  }
+}
+
 function relativeLabel(date, kind, today) {
   const prefix = date === today ? '今天' : '明日'
   return `${prefix}${kind === 'sunrise' ? '清晨' : '傍晚'}`
@@ -160,7 +197,7 @@ function getWindows(daily, now) {
       const start = new Date(solar.getTime() + before * 60 * 1000)
       const end = new Date(solar.getTime() + after * 60 * 1000)
       if (end.getTime() > now.getTime() && start.getTime() < horizon) {
-        windows.push({ kind, start, end, daily: day, title: relativeLabel(day.fxDate, kind, today) })
+        windows.push({ kind, start, end, solar, daily: day, title: relativeLabel(day.fxDate, kind, today) })
       }
     })
   })
@@ -174,19 +211,24 @@ function buildWindow(window, hourly) {
   const sky = buildItem(type, skyScore(metrics), window.start, window.end, metrics, direction)
   const fire = buildItem('火烧云', fireCloudScore(metrics, sky.score), window.start, window.end, metrics, direction)
   const skies = [sky, fire]
-  const hero = skies.reduce((best, item) => item.score > best.score ? item : best)
   return {
     title: window.title,
     kind: window.kind,
     date: window.daily.fxDate,
     time: sky.time,
+    solarAt: window.solar.getTime(),
+    solarTime: formatTime(window.solar),
     startAt: window.start.getTime(),
     endAt: window.end.getTime(),
     startTime: formatTime(window.start),
     endTime: formatTime(window.end),
     skies,
-    hero: { ...hero, displayTitle: hero.type },
-    secondarySkies: skies.filter((item) => item.type !== hero.type),
+    // 同一观赏时段内，朝霞/晚霞与火烧云作为一组展示；
+    // 火烧云仍使用独立评分，但不再因分数更高而替代主霞况。
+    primarySky: sky,
+    fireCloud: fire,
+    hero: { ...sky, displayTitle: sky.type },
+    secondarySkies: [fire],
     hourlyTimeline: buildDetailTimeline(window, hourly),
     factors: buildFactors(metrics)
   }
@@ -405,7 +447,7 @@ function buildTwoWeekForecastView({ city, hourly, daily, now = new Date() }) {
   }
 }
 
-function buildForecastView({ city, hourly, daily, alerts, now = new Date() }) {
+function buildForecastView({ city, hourly, daily, alerts, airQuality, now = new Date() }) {
   const rainEvents = buildRainEvents(hourly, now)
   const windowDefinitions = getWindows(daily, now)
   const windows = windowDefinitions.map((window) => ({
@@ -413,6 +455,11 @@ function buildForecastView({ city, hourly, daily, alerts, now = new Date() }) {
     rainImpact: rainImpactFor(window, rainEvents)
   }))
   if (windows.length < 2) throw new Error('未获得足够的日出日落预报数据')
+  const primaryMetrics = getMetrics(
+    selectHours(hourly, windowDefinitions[0].start, windowDefinitions[0].end),
+    windowDefinitions[0].daily
+  )
+  const airReference = buildAirReference(airQuality, primaryMetrics.visibility)
   const alert = alerts[0]
   const shortRain = buildShortRainForecast(hourly, now) || buildAlertRainForecast(alert, now)
   const today = chinaDate(now)
@@ -426,6 +473,7 @@ function buildForecastView({ city, hourly, daily, alerts, now = new Date() }) {
     hasRain: rainEvents.length > 0,
     rain: rainEvents.length ? { events: rainEvents, primary: rainEvents[0] } : null,
     shortRain,
+    airReference,
     warning: alert ? { title: alert.headline || alert.eventType.name, detail: alert.description } : null,
     trend: daily.filter((day) => day.fxDate >= today).slice(0, 3).map((day) => ({
       day: trendLabel(day.fxDate, today),

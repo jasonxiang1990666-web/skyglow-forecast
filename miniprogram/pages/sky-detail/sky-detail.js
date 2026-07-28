@@ -1,4 +1,4 @@
-const { getNext24HourForecast } = require('../../services/weather')
+const { getNext24HourForecast, getNearbyViewingSpots } = require('../../services/weather')
 
 function countdownText(minutes) {
   const safeMinutes = Math.max(0, minutes)
@@ -22,6 +22,11 @@ Page({
     skyWindow: null,
     selected: null,
     warning: null,
+    airReference: null,
+    fireCloud: null,
+    nearbySpots: null,
+    nearbyLoading: false,
+    nearbyMessage: '',
     advice: '',
     countdown: null,
     loading: true,
@@ -31,7 +36,6 @@ Page({
 
   onLoad(options) {
     this.windowIndex = Number(options.window) || 0
-    this.skyType = decodeURIComponent(options.type || '')
   },
 
   onShow() {
@@ -59,21 +63,28 @@ Page({
         const skyWindow = windows[this.windowIndex] || windows[0]
         if (!skyWindow) throw new Error('未获得霞况窗口')
 
-        const selected = skyWindow.skies.find((item) => item.type === this.skyType) || skyWindow.hero
+        const skies = Array.isArray(skyWindow.skies) ? skyWindow.skies : []
+        const selected = skyWindow.primarySky || skies.find((item) => item.type === '朝霞' || item.type === '晚霞') || skyWindow.hero || skies[0]
+        const fireCloud = skyWindow.fireCloud || skies.find((item) => item.type === '火烧云') || null
+        if (!selected) throw new Error('未获得霞况数据')
         const normalizedWindow = {
           ...skyWindow,
+          primarySky: selected,
+          fireCloud,
           factors: skyWindow.factors || { favorable: [], unfavorable: [] },
           hourlyTimeline: skyWindow.hourlyTimeline || []
         }
         this.setData({
           skyWindow: normalizedWindow,
           selected,
+          fireCloud,
           warning: forecast.warning || null,
+          airReference: forecast.airReference || null,
           advice: adviceFor(normalizedWindow, selected, forecast.warning),
           updatedAt: forecast.updatedAt,
           loading: false
         })
-        wx.setNavigationBarTitle({ title: `${selected.type}详情` })
+        wx.setNavigationBarTitle({ title: `${selected.type}与火烧云详情` })
         this.startCountdown()
       })
       .catch(() => {
@@ -87,6 +98,53 @@ Page({
 
   retry() {
     this.loadDetail()
+  },
+
+  loadNearbySpots() {
+    const skyWindow = this.data.skyWindow
+    if (!skyWindow || this.data.nearbyLoading) return
+
+    this.setData({ nearbyLoading: true, nearbyMessage: '' })
+    wx.getLocation({
+      type: 'gcj02',
+      success: (location) => {
+        getNearbyViewingSpots({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          scene: skyWindow.kind
+        }).then((nearbySpots) => {
+          this.setData({
+            nearbySpots,
+            nearbyLoading: false,
+            nearbyMessage: nearbySpots.enabled ? '' : nearbySpots.message
+          })
+        }).catch((error) => {
+          console.warn('Nearby viewing spots unavailable', error)
+          this.setData({
+            nearbyLoading: false,
+            nearbyMessage: '暂时无法获取附近地点，请稍后重试。'
+          })
+        })
+      },
+      fail: () => {
+        this.setData({
+          nearbyLoading: false,
+          nearbyMessage: '允许定位后，才能按距离推荐附近开阔地点。'
+        })
+      }
+    })
+  },
+
+  openSpotLocation(event) {
+    const item = event.currentTarget.dataset.item
+    if (!item || !Number.isFinite(Number(item.latitude)) || !Number.isFinite(Number(item.longitude))) return
+    wx.openLocation({
+      latitude: Number(item.latitude),
+      longitude: Number(item.longitude),
+      name: item.name,
+      address: item.address || '',
+      scale: 17
+    })
   },
 
   startCountdown() {

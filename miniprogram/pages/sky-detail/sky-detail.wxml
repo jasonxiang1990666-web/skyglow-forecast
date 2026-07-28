@@ -1,7 +1,7 @@
 <view wx:if="{{!loading && skyWindow && selected}}" class="detail-page">
   <view class="detail-header">
     <view class="detail-city">{{city}}</view>
-    <view class="detail-period">{{skyWindow.title}} · {{selected.type}}</view>
+    <view class="detail-period">{{skyWindow.title}} · {{selected.type}}与火烧云</view>
   </view>
 
   <view class="countdown-card card countdown-{{countdown.state}}">
@@ -15,22 +15,73 @@
     <view class="warning-detail">{{warning.detail}}</view>
   </view>
 
-  <view class="summary-card card summary-{{selected.tier}}">
-    <view>
-      <view class="summary-type">{{selected.type}}</view>
-      <view class="summary-score">{{selected.score}}%</view>
-      <view class="summary-label">{{selected.label}}</view>
+  <view class="detail-sky-card card">
+    <view class="summary-card summary-{{selected.tier}}">
+      <view>
+        <view class="summary-type">{{selected.type}}</view>
+        <view class="summary-score">{{selected.score}}%</view>
+        <view class="summary-label">{{selected.label}}</view>
+      </view>
+      <view class="summary-right">
+        <view>{{skyWindow.time}}</view>
+        <view class="summary-reason">{{selected.reason}}</view>
+        <view wx:if="{{selected.showDirection && !warning}}" class="direction">{{selected.direction}}</view>
+      </view>
     </view>
-    <view class="summary-right">
-      <view>{{skyWindow.time}}</view>
-      <view class="summary-reason">{{selected.reason}}</view>
-      <view wx:if="{{selected.showDirection && !warning}}" class="direction">{{selected.direction}}</view>
+    <view wx:if="{{fireCloud}}" class="detail-fire-row">
+      <view>
+        <view class="sky-name">火烧云 <text class="sky-label sky-{{fireCloud.tier}}">{{fireCloud.label}}</text></view>
+        <view class="sky-reason">{{fireCloud.time}} · {{fireCloud.reason}}</view>
+        <view wx:if="{{fireCloud.showDirection && !warning}}" class="direction detail-fire-direction">{{fireCloud.direction}}</view>
+      </view>
+      <view class="sky-score">{{fireCloud.score}}%</view>
     </view>
   </view>
 
   <view class="section-title">观赏建议</view>
   <view class="advice-card card">{{advice}}</view>
   <view wx:if="{{skyWindow.rainImpact}}" class="rain-impact">{{skyWindow.rainImpact}}</view>
+
+  <view class="section-title">附近开阔观赏点</view>
+  <view class="nearby-card card">
+    <view wx:if="{{nearbyLoading}}" class="nearby-loading">正在查找附近开阔地点…</view>
+    <view wx:elif="{{nearbySpots && nearbySpots.spots.length}}">
+      <view wx:for="{{nearbySpots.spots}}" wx:key="name" class="spot-row" bindtap="openSpotLocation" data-item="{{item}}" role="button" aria-label="在微信地图中查看{{item.name}}">
+        <view class="spot-main">
+          <view class="spot-name">{{item.name}}</view>
+          <view class="spot-address">{{item.address || item.category}}</view>
+          <view class="spot-reason">{{item.reason}}</view>
+        </view>
+        <view class="spot-side"><text>{{item.distanceText}}</text><text class="spot-link">去导航 ›</text></view>
+      </view>
+      <view class="nearby-note">{{nearbySpots.note}}</view>
+    </view>
+    <view wx:elif="{{nearbyMessage}}" class="nearby-empty">
+      <view>{{nearbyMessage || '附近暂未找到合适的公开观赏点。'}}</view>
+      <view class="nearby-button nearby-button-secondary" bindtap="loadNearbySpots">重新尝试</view>
+    </view>
+    <view wx:else class="nearby-intro">
+      <view class="nearby-title">基于当前位置推荐</view>
+      <view class="nearby-description">优先展示5公里内的公园与观景点，必要时扩展到10公里。</view>
+      <view class="nearby-button" bindtap="loadNearbySpots">查看附近地点</view>
+    </view>
+  </view>
+
+  <view wx:if="{{airReference}}" class="section-title">空气参考</view>
+  <view wx:if="{{airReference}}" class="air-card card">
+    <view class="air-summary">
+      <view>
+        <view class="air-title">空气通透度 <text class="air-level air-{{airReference.level}}">{{airReference.label}}</text></view>
+        <view class="air-description">{{airReference.description}}</view>
+      </view>
+    </view>
+    <view class="air-metrics">
+      <view class="air-metric"><text>AQI</text><text class="air-metric-value">{{airReference.aqiText}}</text></view>
+      <view class="air-metric"><text>PM2.5</text><text class="air-metric-value">{{airReference.pm25Text}}</text></view>
+      <view class="air-metric"><text>预报能见度</text><text class="air-metric-value">{{airReference.visibilityText}}</text></view>
+    </view>
+    <view class="air-note">{{airReference.note}}</view>
+  </view>
 
   <view class="section-title">观赏条件分析</view>
   <view class="factor-card card">

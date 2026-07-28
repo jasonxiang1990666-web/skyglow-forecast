@@ -3,6 +3,7 @@
     "pages/index/index",
     "pages/sky-detail/sky-detail",
     "pages/weather-week/weather-week",
+    "pages/model-map/model-map",
     "pages/rain/rain",
     "pages/cities/cities",
     "pages/settings/settings"
@@ -16,7 +17,7 @@
   },
   "permission": {
     "scope.userLocation": {
-      "desc": "用于在你主动点击定位时识别所在城市，展示当地天气与霞况预报"
+      "desc": "用于在你主动点击定位时识别所在城市，并推荐附近开阔观赏点"
     }
   },
   "requiredPrivateInfos": ["getLocation"],

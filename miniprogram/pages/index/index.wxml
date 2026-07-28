@@ -48,42 +48,60 @@
       </view>
 
       <view class="window-heading">
-        <text>{{forecast.primaryWindow.title}}</text><text class="window-time">建议 {{forecast.primaryWindow.time}}</text>
+        <text>{{forecast.primaryWindow.title}}</text><text class="window-time">推荐观赏时段 {{forecast.primaryWindow.time}}</text>
       </view>
-      <view class="hero card hero-{{forecast.primaryWindow.hero.tier}}" bindtap="goSkyDetail" data-window-index="0" data-type="{{forecast.primaryWindow.hero.type}}" role="button" aria-label="查看{{forecast.primaryWindow.hero.type}}详情">
-        <view>
-          <view class="hero-type">{{forecast.primaryWindow.hero.displayTitle}}</view>
-          <view class="hero-score">{{forecast.primaryWindow.hero.score}}%</view>
-          <view class="hero-label">{{forecast.primaryWindow.hero.label}}</view>
+      <view class="sky-window-card card" bindtap="goSkyDetail" data-window-index="0" role="button" aria-label="查看{{forecast.primaryWindow.title}}霞况详情">
+        <view class="hero hero-{{forecast.primaryWindow.primarySky.tier}}">
+          <view>
+            <view class="hero-type">{{forecast.primaryWindow.primarySky.type}}</view>
+            <view class="hero-score">{{forecast.primaryWindow.primarySky.score}}%</view>
+            <view class="hero-label">{{forecast.primaryWindow.primarySky.label}}</view>
+          </view>
+          <view class="hero-detail">
+            <view>{{forecast.primaryWindow.primarySky.reason}}</view>
+            <view wx:if="{{forecast.primaryWindow.primarySky.showDirection && !forecast.warning}}" class="direction">{{forecast.primaryWindow.primarySky.direction}}</view>
+          </view>
         </view>
-        <view class="hero-detail">
-          <view>{{forecast.primaryWindow.hero.reason}}</view>
-          <view wx:if="{{forecast.primaryWindow.hero.showDirection && !forecast.warning}}" class="direction">{{forecast.primaryWindow.hero.direction}}</view>
+        <view class="sky-row">
+          <view>
+            <view class="sky-name">{{forecast.primaryWindow.fireCloud.type}} <text class="sky-label sky-{{forecast.primaryWindow.fireCloud.tier}}">{{forecast.primaryWindow.fireCloud.label}}</text></view>
+            <view class="sky-reason">{{forecast.primaryWindow.fireCloud.time}} · {{forecast.primaryWindow.fireCloud.reason}}</view>
+          </view>
+          <view class="sky-score">{{forecast.primaryWindow.fireCloud.score}}%</view>
+        </view>
+      </view>
+      <view wx:if="{{solarCountdown || forecast.airReference}}" class="atmosphere-reference card">
+        <view wx:if="{{solarCountdown}}" class="reference-item">
+          <text class="reference-value reference-value-leading">{{solarCountdown}}</text>
+          <text wx:if="{{forecast.primaryWindow.solarTime}}" class="reference-note">{{forecast.primaryWindow.kind === 'sunrise' ? '日出' : '日落'}} {{forecast.primaryWindow.solarTime}}</text>
+        </view>
+        <view wx:if="{{solarCountdown && forecast.airReference}}" class="reference-divider"></view>
+        <view wx:if="{{forecast.airReference}}" class="reference-item">
+          <text class="reference-label">空气通透</text>
+          <text class="reference-value air-{{forecast.airReference.level}}">{{forecast.airReference.label}}</text>
+          <text class="reference-note">详情可查看 AQI 与 PM2.5</text>
         </view>
       </view>
       <view wx:if="{{forecast.primaryWindow.rainImpact}}" class="sky-rain-impact">{{forecast.primaryWindow.rainImpact}}</view>
 
-      <view wx:if="{{forecast.primaryWindow.secondarySkies.length}}" class="sky-list card">
-        <view wx:for="{{forecast.primaryWindow.secondarySkies}}" wx:key="type" class="sky-row" bindtap="goSkyDetail" data-window-index="0" data-type="{{item.type}}" role="button" aria-label="查看{{item.type}}详情">
-          <view>
-            <view class="sky-name">{{item.type}} <text class="sky-label sky-{{item.tier}}">{{item.label}}</text></view>
-            <view class="sky-reason">{{item.time}} · {{item.reason}}</view>
-          </view>
-          <view class="sky-score">{{item.score}}%</view>
-        </view>
-      </view>
-
       <view class="window-heading next-window-heading">
-        <text>{{forecast.secondaryWindow.title}}</text><text class="window-time">建议 {{forecast.secondaryWindow.time}}</text>
+        <text>{{forecast.secondaryWindow.title}}</text><text class="window-time">推荐观赏时段 {{forecast.secondaryWindow.time}}</text>
       </view>
-      <view class="sky-list card">
-        <view wx:for="{{forecast.secondaryWindow.skies}}" wx:key="type" class="sky-row" bindtap="goSkyDetail" data-window-index="1" data-type="{{item.type}}" role="button" aria-label="查看{{item.type}}详情">
+      <view class="sky-window-card card" bindtap="goSkyDetail" data-window-index="1" role="button" aria-label="查看{{forecast.secondaryWindow.title}}霞况详情">
+        <view class="sky-row">
           <view>
-            <view class="sky-name">{{item.type}} <text class="sky-label sky-{{item.tier}}">{{item.label}}</text></view>
-            <view class="sky-reason">{{item.time}} · {{item.reason}}</view>
-            <view wx:if="{{item.showDirection && !forecast.warning}}" class="direction sky-direction">{{item.direction}}</view>
+            <view class="sky-name">{{forecast.secondaryWindow.primarySky.type}} <text class="sky-label sky-{{forecast.secondaryWindow.primarySky.tier}}">{{forecast.secondaryWindow.primarySky.label}}</text></view>
+            <view class="sky-reason">{{forecast.secondaryWindow.primarySky.time}} · {{forecast.secondaryWindow.primarySky.reason}}</view>
+            <view wx:if="{{forecast.secondaryWindow.primarySky.showDirection && !forecast.warning}}" class="direction sky-direction">{{forecast.secondaryWindow.primarySky.direction}}</view>
           </view>
-          <view class="sky-score">{{item.score}}%</view>
+          <view class="sky-score">{{forecast.secondaryWindow.primarySky.score}}%</view>
+        </view>
+        <view class="sky-row">
+          <view>
+            <view class="sky-name">{{forecast.secondaryWindow.fireCloud.type}} <text class="sky-label sky-{{forecast.secondaryWindow.fireCloud.tier}}">{{forecast.secondaryWindow.fireCloud.label}}</text></view>
+            <view class="sky-reason">{{forecast.secondaryWindow.fireCloud.time}} · {{forecast.secondaryWindow.fireCloud.reason}}</view>
+          </view>
+          <view class="sky-score">{{forecast.secondaryWindow.fireCloud.score}}%</view>
         </view>
       </view>
       <view wx:if="{{forecast.secondaryWindow.rainImpact}}" class="sky-rain-impact">{{forecast.secondaryWindow.rainImpact}}</view>
@@ -104,6 +122,23 @@
         <text class="trend-rain">降水 {{item.precipitation}}</text>
       </view>
     </view>
+    <view wx:if="{{nationalOverview}}" class="national-overview-heading">
+      <text>全国城市霞况概览</text><text>重点城市 · {{nationalOverview.validAt}}</text>
+    </view>
+    <view wx:if="{{nationalOverview}}" class="national-overview-card card" bindtap="goNationalOverview" role="button" aria-label="查看全国重点城市霞况概览">
+      <view class="national-overview-map">
+        <view wx:for="{{nationalOverview.cities}}" wx:key="name" class="national-overview-point" style="left: {{item.left}}%; top: {{item.top}}%; background: {{item.color}};"></view>
+        <view class="national-overview-water">重点城市</view>
+      </view>
+      <view class="national-overview-footer">
+        <view class="national-overview-legend"><text class="national-dot national-high"></text>值得期待</view>
+        <view class="national-overview-legend"><text class="national-dot national-medium"></text>不妨看看</view>
+        <view class="national-overview-legend"><text class="national-dot national-low"></text>不太明显</view>
+        <text class="national-overview-link">查看详情 ›</text>
+      </view>
+      <view class="national-overview-note">{{nationalOverview.note}}</view>
+    </view>
+    <view wx:if="{{nationalOverviewLoading && !nationalOverview}}" class="national-overview-loading">正在汇总全国重点城市预报…</view>
     <view class="updated-at">{{forecast.updatedAt}}</view>
   </view>
 </view>

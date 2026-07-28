@@ -10,7 +10,8 @@
 .warning-card { margin-top: 24rpx; padding: 28rpx; border-radius: 28rpx; background: #fff1f0; color: #a53b36; }
 .warning-title { font-size: 29rpx; font-weight: 600; }
 .warning-detail { margin-top: 10rpx; font-size: 23rpx; line-height: 1.7; }
-.summary-card { display: flex; justify-content: space-between; min-height: 210rpx; margin-top: 24rpx; padding: 30rpx; background: #f8f4ec; }
+.detail-sky-card { margin-top: 24rpx; overflow: hidden; }
+.summary-card { display: flex; justify-content: space-between; min-height: 210rpx; padding: 30rpx; background: #f8f4ec; }
 .summary-low { background: #f1f5f9; }
 .summary-high { background: linear-gradient(135deg, #fff3e2, #fee8d5 58%, #e9eefb); }
 .summary-type { color: #475569; font-size: 28rpx; }
@@ -20,9 +21,46 @@
 .summary-right { max-width: 270rpx; color: #5d6470; font-size: 23rpx; line-height: 1.7; text-align: right; }
 .summary-reason { margin-top: 12rpx; }
 .direction { margin-top: 10rpx; color: #9a4e20; font-weight: 600; }
+.detail-fire-row { display: flex; align-items: center; justify-content: space-between; min-height: 112rpx; padding: 26rpx 30rpx; border-top: 1rpx solid #edf0f3; }
+.detail-fire-direction { font-size: 22rpx; }
+.sky-name { color: #293548; font-size: 28rpx; font-weight: 600; }
+.sky-label { margin-left: 10rpx; font-size: 21rpx; font-weight: 400; }
+.sky-high { color: #b45309; }
+.sky-medium { color: #8a6a3f; }
+.sky-low { color: #7b8794; }
+.sky-reason { margin-top: 10rpx; color: #7b8794; font-size: 22rpx; line-height: 1.5; }
+.sky-score { margin-left: 18rpx; color: #475569; font-size: 36rpx; font-weight: 600; }
 .section-title { margin: 36rpx 4rpx 16rpx; color: #334155; font-size: 30rpx; font-weight: 600; }
 .advice-card { padding: 28rpx 30rpx; color: #536273; font-size: 25rpx; line-height: 1.7; }
 .rain-impact { margin: 12rpx 8rpx 0; color: #a65d27; font-size: 23rpx; line-height: 1.6; }
+.nearby-card { overflow: hidden; }
+.nearby-intro, .nearby-empty { padding: 28rpx 30rpx; }
+.nearby-title { color: #334155; font-size: 27rpx; font-weight: 600; }
+.nearby-description { margin-top: 10rpx; color: #718096; font-size: 23rpx; line-height: 1.55; }
+.nearby-button { display: inline-flex; align-items: center; justify-content: center; min-height: 60rpx; margin-top: 22rpx; padding: 0 24rpx; border-radius: 999rpx; background: #eaf3f9; color: #356b94; font-size: 23rpx; font-weight: 600; }
+.nearby-button-secondary { margin-top: 16rpx; }
+.nearby-loading { padding: 36rpx 30rpx; color: #7b8794; font-size: 24rpx; text-align: center; }
+.spot-row { display: flex; align-items: center; justify-content: space-between; padding: 26rpx 30rpx; cursor: pointer; }
+.spot-row + .spot-row { border-top: 1rpx solid #edf0f3; }
+.spot-main { min-width: 0; flex: 1; }
+.spot-name { color: #334155; font-size: 27rpx; font-weight: 600; }
+.spot-address, .spot-reason { margin-top: 8rpx; color: #7b8794; font-size: 21rpx; line-height: 1.5; }
+.spot-reason { color: #64748b; }
+.spot-side { display: flex; flex: 0 0 110rpx; flex-direction: column; align-items: flex-end; margin-left: 18rpx; color: #64748b; font-size: 22rpx; }
+.spot-link { margin-top: 13rpx; color: #47799f; font-size: 22rpx; }
+.nearby-note { padding: 0 30rpx 22rpx; color: #9aa5b1; font-size: 20rpx; line-height: 1.5; }
+.air-card { padding: 26rpx 30rpx; }
+.air-title { color: #334155; font-size: 27rpx; font-weight: 600; }
+.air-level { margin-left: 10rpx; font-size: 23rpx; }
+.air-good { color: #4f7d63; }
+.air-medium { color: #a36c30; }
+.air-poor { color: #b4534d; }
+.air-description { margin-top: 10rpx; color: #66778a; font-size: 23rpx; }
+.air-metrics { display: flex; margin-top: 22rpx; padding-top: 20rpx; border-top: 1rpx solid #edf0f3; }
+.air-metric { display: flex; flex: 1; flex-direction: column; min-width: 0; color: #8b98a8; font-size: 20rpx; }
+.air-metric + .air-metric { padding-left: 14rpx; border-left: 1rpx solid #edf0f3; }
+.air-metric-value { margin-top: 8rpx; color: #475569; font-size: 24rpx; font-weight: 600; white-space: nowrap; }
+.air-note { margin-top: 20rpx; color: #8b98a8; font-size: 20rpx; line-height: 1.55; }
 .factor-card { overflow: hidden; }
 .factor-group { padding: 26rpx 30rpx; }
 .factor-group-last { border-top: 1rpx solid #edf0f3; }
