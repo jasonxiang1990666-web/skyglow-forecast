@@ -1,4 +1,5 @@
 const { getNext24HourForecast } = require('../../services/weather')
+const { withWarningRainFallback } = require('../../utils/rain')
 
 Page({
   data: {
@@ -23,7 +24,7 @@ Page({
   loadForecast(city) {
     this.setData({ loading: true })
     getNext24HourForecast(city)
-      .then((forecast) => this.setData({ forecast, loading: false }))
+      .then((forecast) => this.setData({ forecast: withWarningRainFallback(forecast), loading: false }))
       .catch(() => {
         this.setData({ loading: false })
         wx.showToast({ title: '天气数据加载失败', icon: 'none' })
@@ -36,6 +37,10 @@ Page({
 
   goSettings() {
     wx.navigateTo({ url: '/pages/settings/settings' })
+  },
+
+  goRainDetail() {
+    wx.navigateTo({ url: '/pages/rain/rain' })
   },
 
   setNavigationMetrics() {

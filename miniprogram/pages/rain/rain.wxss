@@ -1,0 +1,23 @@
+.rain-page { min-height: 100vh; padding: 34rpx 28rpx 56rpx; box-sizing: border-box; }
+.rain-header { margin: 8rpx 4rpx 28rpx; }
+.rain-city { color: #26384b; font-size: 42rpx; font-weight: 600; }
+.rain-subtitle { margin-top: 10rpx; color: #7b8794; font-size: 24rpx; }
+.rain-summary, .empty-card { padding: 30rpx; background: #f1f7fb; }
+.summary-title, .empty-title { color: #294661; font-size: 34rpx; font-weight: 600; }
+.summary-detail, .empty-detail { margin-top: 12rpx; color: #68778a; font-size: 25rpx; line-height: 1.6; }
+.summary-stats { display: flex; margin-top: 30rpx; padding-top: 24rpx; border-top: 1rpx solid #dceaf3; }
+.summary-stats view { display: flex; flex: 1; flex-direction: column; color: #7b8794; font-size: 21rpx; }
+.stat-number { margin-bottom: 8rpx; color: #356b94; font-size: 36rpx; font-weight: 600; }
+.detail-title { margin: 38rpx 4rpx 16rpx; color: #334155; font-size: 30rpx; font-weight: 600; }
+.hourly-list { overflow: hidden; }
+.hourly-row { display: flex; align-items: center; min-height: 88rpx; padding: 0 26rpx; color: #66778a; font-size: 24rpx; }
+.hourly-row + .hourly-row { border-top: 1rpx solid #edf0f3; }
+.hourly-rain { background: #f5fbff; color: #356b94; }
+.hourly-time { width: 90rpx; color: #334155; font-weight: 600; }
+.hourly-weather { flex: 1; }
+.hourly-probability { width: 84rpx; text-align: right; }
+.hourly-precip { width: 98rpx; text-align: right; }
+.hourly-empty { padding: 28rpx; color: #7b8794; font-size: 24rpx; }
+.alert-note { margin-top: 34rpx; padding: 26rpx 28rpx; background: #fff8ed; color: #9a642d; font-size: 24rpx; line-height: 1.7; }
+.updated-at { margin-top: 24rpx; color: #9aa5b1; font-size: 22rpx; text-align: center; }
+.loading-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }

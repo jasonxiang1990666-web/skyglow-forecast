@@ -1,0 +1,35 @@
+<view wx:if="{{!loading}}" class="rain-page">
+  <view class="rain-header">
+    <view class="rain-city">{{city}}</view>
+    <view class="rain-subtitle">未来12小时降雨预报</view>
+  </view>
+
+  <view wx:if="{{rain}}" class="rain-summary card">
+    <view class="summary-title">{{rain.headline}}</view>
+    <view class="summary-detail">{{rain.detail}}</view>
+    <view class="summary-stats">
+      <view><text class="stat-number">{{rain.probability}}%</text><text>最高降水概率</text></view>
+      <view><text class="stat-number">{{rain.precipitationText}}</text><text>预计累计降水</text></view>
+    </view>
+  </view>
+
+  <view wx:else class="empty-card card">
+    <view class="empty-title">未来12小时暂无明显降雨</view>
+    <view class="empty-detail">如天气变化，我们会在首页优先提示。</view>
+  </view>
+
+  <view wx:if="{{rain && rain.alertDriven}}" class="alert-note card">预警影响范围和时段请以首页的安全提醒为准；逐小时预报未必能覆盖局地强对流天气。</view>
+  <view wx:if="{{rain && !rain.alertDriven}}" class="detail-title">逐小时预报</view>
+  <view wx:if="{{rain && !rain.alertDriven}}" class="hourly-list card">
+    <view wx:for="{{rain.timeline}}" wx:key="timestamp" class="hourly-row {{item.isRaining ? 'hourly-rain' : ''}}">
+      <text class="hourly-time">{{item.time}}</text>
+      <text class="hourly-weather">{{item.weather}}</text>
+      <text class="hourly-probability">{{item.probability}}%</text>
+      <text class="hourly-precip">{{item.precipitationText}}</text>
+    </view>
+  </view>
+  <view wx:if="{{!rain}}" class="hourly-empty card">目前各时段降雨概率较低</view>
+  <view class="updated-at">{{updatedAt}}</view>
+</view>
+
+<view wx:else class="loading-page">正在查看降雨动态…</view>

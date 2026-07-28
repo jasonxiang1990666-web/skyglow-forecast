@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/rain/rain",
     "pages/cities/cities",
     "pages/settings/settings"
   ],

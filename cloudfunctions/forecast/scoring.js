@@ -140,6 +140,25 @@ function buildWindow(window, hourly) {
   }
 }
 
+function groupRainRecords(records) {
+  if (!records.length) return []
+  const groups = []
+  let group = []
+  records.forEach((item) => {
+    const currentTime = new Date(item.fxTime).getTime()
+    const previous = group[group.length - 1]
+    const previousTime = previous ? new Date(previous.fxTime).getTime() : 0
+    if (previous && currentTime - previousTime > HOUR * 1.5) {
+      groups.push(group)
+      group = []
+    }
+    group.push(item)
+  })
+  if (group.length) groups.push(group)
+
+  return groups.map((groupRecords) => buildRainEvent(groupRecords))
+}
+
 function buildRainEvents(hourly, now) {
   const horizon = now.getTime() + 24 * HOUR
   const rainHours = hourly.filter((item) => {
@@ -147,13 +166,143 @@ function buildRainEvents(hourly, now) {
     return time >= now.getTime() && time < horizon &&
       (number(item.pop, 0) >= 40 || number(item.precip, 0) > 0 || isBadWeather(item.text))
   })
-  if (!rainHours.length) return []
-  const probability = Math.max(...rainHours.map((item) => number(item.pop, 0)))
-  return [{
+  return groupRainRecords(rainHours)
+}
+
+function rainIntensity(records) {
+  const texts = records.map((item) => item.text || '').join(' ')
+  const maximum = Math.max(...records.map((item) => number(item.precip, 0)), 0)
+  if (/雷/.test(texts)) return '雷阵雨'
+  if (/暴雨|大暴雨/.test(texts) || maximum >= 10) return '大雨'
+  if (/中雨/.test(texts) || maximum >= 2.5) return '中雨'
+  if (/小雨|雨/.test(texts) || maximum > 0) return '小雨'
+  return '有雨'
+}
+
+function formatRainAmount(amount) {
+  const fixed = amount < 1 ? amount.toFixed(1) : amount.toFixed(1).replace(/\.0$/, '')
+  return `${fixed}mm`
+}
+
+function formatDuration(start, end) {
+  const hours = Math.max(1, Math.round((end - start) / HOUR))
+  return `约${hours}小时`
+}
+
+function buildRainEvent(records) {
+  const start = new Date(records[0].fxTime)
+  const last = new Date(records[records.length - 1].fxTime)
+  const end = new Date(last.getTime() + HOUR)
+  const probability = Math.max(...records.map((item) => number(item.pop, 0)), 0)
+  const amount = records.reduce((total, item) => total + number(item.precip, 0), 0)
+  const intensity = rainIntensity(records)
+  return {
+    startAt: start.getTime(),
+    endAt: end.getTime(),
+    startTime: formatTime(start),
+    endTime: formatTime(end),
+    time: `${formatTime(start)}–${formatTime(end)}`,
+    duration: formatDuration(start, end),
     probability,
-    time: `${formatTime(new Date(rainHours[0].fxTime))}–${formatTime(new Date(rainHours[rainHours.length - 1].fxTime))}`,
-    text: '有降水可能，出门建议带伞'
-  }]
+    precipitation: amount,
+    precipitationText: formatRainAmount(amount),
+    intensity,
+    text: `${intensity}，出门建议带伞`
+  }
+}
+
+function buildRainTimeline(hourly, now) {
+  const horizon = now.getTime() + 12 * HOUR
+  return hourly
+    .filter((item) => {
+      const time = new Date(item.fxTime).getTime()
+      return time >= now.getTime() - HOUR && time < horizon
+    })
+    .map((item) => {
+      const time = new Date(item.fxTime)
+      const precipitation = number(item.precip, 0)
+      const probability = number(item.pop, 0)
+      return {
+        timestamp: time.getTime(),
+        time: formatTime(time),
+        weather: item.text || '天气变化中',
+        probability,
+        precipitation,
+        precipitationText: formatRainAmount(precipitation),
+        isRaining: probability >= 40 || precipitation > 0 || isBadWeather(item.text)
+      }
+    })
+}
+
+function pickTimelineNodes(timeline, count = 6) {
+  if (timeline.length <= count) return timeline
+  const indexes = new Set()
+  for (let index = 0; index < count; index += 1) {
+    indexes.add(Math.round(index * (timeline.length - 1) / (count - 1)))
+  }
+  return [...indexes].map((index) => timeline[index])
+}
+
+function buildShortRainForecast(hourly, now) {
+  const timeline = buildRainTimeline(hourly, now)
+  const rainHours = timeline.filter((item) => item.isRaining)
+  if (!rainHours.length) return null
+
+  const records = rainHours.map((point) => ({
+    fxTime: new Date(point.timestamp).toISOString(),
+    pop: point.probability,
+    precip: point.precipitation,
+    text: point.weather
+  }))
+  const event = groupRainRecords(records)[0]
+  if (!event) return null
+  const startsIn = event.startAt - now.getTime()
+  const isCurrent = event.startAt <= now.getTime() && event.endAt > now.getTime()
+  const isSoon = event.startAt <= now.getTime() + 3 * HOUR && event.endAt > now.getTime()
+  const hoursUntil = Math.max(1, Math.ceil(startsIn / HOUR))
+  let headline = '未来12小时可能有雨'
+  if (isCurrent) headline = `正在下${event.intensity}`
+  else if (startsIn <= HOUR) headline = '雨快来了'
+  else if (isSoon) headline = `约${hoursUntil}小时后有${event.intensity}`
+
+  const detail = isCurrent
+    ? `预计至${event.endTime}前后结束 · 累计${event.precipitationText}`
+    : `${event.startTime}开始 · 预计持续${event.duration}`
+
+  return {
+    ...event,
+    headline,
+    detail,
+    isSoon,
+    isCurrent,
+    timeline,
+    summaryTimeline: pickTimelineNodes(timeline)
+  }
+}
+
+function rainImpactFor(window, rainEvents) {
+  const overlap = rainEvents.find((event) => event.startAt < window.end.getTime() && event.endAt > window.start.getTime())
+  return overlap ? `该时段有${overlap.intensity}，观赏条件受影响` : ''
+}
+
+function buildAlertRainForecast(alert, now) {
+  if (!alert) return null
+  const title = alert.headline || (alert.eventType && alert.eventType.name) || ''
+  const detail = alert.description || ''
+  const content = `${title} ${detail}`
+  if (!/雷雨|暴雨|大雨|强降水|短时强降水|雷电/.test(content)) return null
+
+  return {
+    headline: '未来3小时可能有强降雨',
+    detail: `${title || '已发布降雨预警'}，请以安全预警为准`,
+    probability: 100,
+    precipitationText: '以预警为准',
+    isSoon: true,
+    isCurrent: false,
+    alertDriven: true,
+    timeline: [],
+    summaryTimeline: []
+  }
 }
 
 function trendLabel(date, today) {
@@ -162,10 +311,15 @@ function trendLabel(date, today) {
 }
 
 function buildForecastView({ city, hourly, daily, alerts, now = new Date() }) {
-  const windows = getWindows(daily, now).map((window) => buildWindow(window, hourly))
-  if (windows.length < 2) throw new Error('未获得足够的日出日落预报数据')
   const rainEvents = buildRainEvents(hourly, now)
+  const windowDefinitions = getWindows(daily, now)
+  const windows = windowDefinitions.map((window) => ({
+    ...buildWindow(window, hourly),
+    rainImpact: rainImpactFor(window, rainEvents)
+  }))
+  if (windows.length < 2) throw new Error('未获得足够的日出日落预报数据')
   const alert = alerts[0]
+  const shortRain = buildShortRainForecast(hourly, now) || buildAlertRainForecast(alert, now)
   const today = chinaDate(now)
   return {
     city,
@@ -176,6 +330,7 @@ function buildForecastView({ city, hourly, daily, alerts, now = new Date() }) {
     allLow: windows.every((window) => window.skies.every((item) => item.tier === 'low')),
     hasRain: rainEvents.length > 0,
     rain: rainEvents.length ? { events: rainEvents, primary: rainEvents[0] } : null,
+    shortRain,
     warning: alert ? { title: alert.headline || alert.eventType.name, detail: alert.description } : null,
     trend: daily.filter((day) => day.fxDate >= today).slice(0, 3).map((day) => ({
       day: trendLabel(day.fxDate, today),
