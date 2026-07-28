@@ -1,6 +1,8 @@
 const cloud = require('wx-server-sdk')
-const { lookupCity, lookupCoordinates, searchCities, getWeather, getTwoWeekWeather, getAlerts } = require('./qweather')
+const { lookupCity, lookupCoordinates, searchCities, getWeather, getTwoWeekWeather, getAirQuality, getAlerts } = require('./qweather')
 const { buildForecastView, buildTwoWeekForecastView } = require('./scoring')
+const { buildNationalCityOverview } = require('./national-overview')
+const { getNearbyViewingSpots } = require('./places')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
@@ -21,8 +23,23 @@ exports.main = async (event) => {
     return { cities: await searchCities(event.keyword) }
   }
 
+  if (event.action === 'nearbyViewingSpots') {
+    return getNearbyViewingSpots({
+      latitude: event.latitude,
+      longitude: event.longitude,
+      scene: event.scene
+    })
+  }
+
   const city = String(event.city || '').trim()
   if (!city) throw new Error('缺少城市参数')
+
+  if (event.action === 'nationalCityOverview') {
+    return buildNationalCityOverview({
+      targetAt: event.targetAt,
+      scene: event.scene
+    })
+  }
 
   const location = await lookupCity(city)
   if (event.action === 'twoWeekForecast') {
@@ -30,10 +47,11 @@ exports.main = async (event) => {
     return buildTwoWeekForecastView({ city: location.name, hourly, daily })
   }
 
-  const [{ hourly, daily }, alerts] = await Promise.all([
+  const [{ hourly, daily }, alerts, airQuality] = await Promise.all([
     getWeather(location.id),
-    getAlerts(location.lat, location.lon)
+    getAlerts(location.lat, location.lon),
+    getAirQuality(location.lat, location.lon)
   ])
   const now = event.mode === 'tomorrow' ? nextChinaDayStart() : new Date()
-  return buildForecastView({ city: location.name, hourly, daily, alerts, now })
+  return buildForecastView({ city: location.name, hourly, daily, alerts, airQuality, now })
 }

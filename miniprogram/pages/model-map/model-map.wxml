@@ -1,0 +1,31 @@
+<view wx:if="{{!loading && map}}" class="map-page">
+  <view class="map-title">{{map.title}}</view>
+  <view class="map-subtitle">对应时段 {{map.validAt}}</view>
+
+  <view class="full-map card">
+    <view wx:for="{{map.cities}}" wx:key="name" class="full-map-city-wrap" style="left: {{item.left}}%; top: {{item.top}}%;">
+      <view class="full-map-point" style="background: {{item.color}};"></view>
+      <text class="full-map-city-label">{{item.name}}</text>
+    </view>
+    <view class="full-map-water">重点城市</view>
+  </view>
+
+  <view class="legend-card card">
+    <view class="legend-title">霞况条件图例</view>
+    <view class="legend-row">
+      <view><text class="legend-dot legend-high"></text>值得期待</view>
+      <view><text class="legend-dot legend-medium"></text>不妨看看</view>
+      <view><text class="legend-dot legend-low"></text>不太明显</view>
+    </view>
+  </view>
+
+  <view class="map-note">{{map.note}}</view>
+  <view class="updated-at">概览更新于 {{map.updatedAt}}</view>
+</view>
+
+<view wx:elif="{{loadError}}" class="state-page">
+  <view>{{loadError}}</view>
+  <view class="retry-button" bindtap="retry">重新加载</view>
+</view>
+
+<view wx:else class="state-page">正在汇总全国重点城市预报…</view>

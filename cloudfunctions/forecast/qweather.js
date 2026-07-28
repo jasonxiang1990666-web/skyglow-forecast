@@ -160,6 +160,20 @@ async function getTwoWeekWeather(locationId) {
   return { hourly: hourly.hourly || [], daily: daily.daily || [] }
 }
 
+async function getHourlyWeather(locationId) {
+  const hourly = await apiGet('/v7/weather/72h', { location: locationId, lang: 'zh', unit: 'm' })
+  return hourly.hourly || []
+}
+
+async function getAirQuality(latitude, longitude) {
+  try {
+    return await apiGet(`/airquality/v1/current/${latitude}/${longitude}`, { lang: 'zh' })
+  } catch (error) {
+    console.warn('空气质量获取失败', error.message)
+    return null
+  }
+}
+
 async function getAlerts(latitude, longitude) {
   try {
     const data = await apiGet(`/weatheralert/v1/current/${latitude}/${longitude}`, { localTime: 'true', lang: 'zh' })
@@ -170,4 +184,4 @@ async function getAlerts(latitude, longitude) {
   }
 }
 
-module.exports = { lookupCity, lookupCoordinates, searchCities, getWeather, getTwoWeekWeather, getAlerts }
+module.exports = { lookupCity, lookupCoordinates, searchCities, getWeather, getHourlyWeather, getTwoWeekWeather, getAirQuality, getAlerts }

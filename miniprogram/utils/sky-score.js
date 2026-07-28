@@ -21,15 +21,18 @@ function buildSkyItem(item) {
 function build24HourView(rawForecast) {
   const skyWindows = rawForecast.skyWindows.map((window) => {
     const skies = window.skies.map(buildSkyItem)
-    const hero = skies.reduce((best, item) => (item.score > best.score ? item : best))
+    const primarySky = skies.find((item) => item.type === '朝霞' || item.type === '晚霞') || skies[0]
+    const fireCloud = skies.find((item) => item.type === '火烧云') || skies[1] || null
     return {
       ...window,
       skies,
+      primarySky,
+      fireCloud,
       hero: {
-        ...hero,
-        displayTitle: hero.type
+        ...primarySky,
+        displayTitle: primarySky.type
       },
-      secondarySkies: skies.filter((item) => item.type !== hero.type)
+      secondarySkies: fireCloud ? [fireCloud] : []
     }
   })
   const allLow = skyWindows.every((window) => window.skies.every((item) => item.tier === 'low'))
