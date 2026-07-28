@@ -43,6 +43,16 @@ Page({
     wx.navigateTo({ url: '/pages/rain/rain' })
   },
 
+  goTwoWeekWeather() {
+    wx.navigateTo({ url: `/pages/weather-week/weather-week?city=${encodeURIComponent(this.data.city)}` })
+  },
+
+  goSkyDetail(event) {
+    const { windowIndex, type } = event.currentTarget.dataset
+    const query = `window=${Number(windowIndex) || 0}&type=${encodeURIComponent(type || '')}`
+    wx.navigateTo({ url: `/pages/sky-detail/sky-detail?${query}` })
+  },
+
   setNavigationMetrics() {
     const systemInfo = wx.getSystemInfoSync()
     const statusBarHeight = systemInfo.statusBarHeight || 20

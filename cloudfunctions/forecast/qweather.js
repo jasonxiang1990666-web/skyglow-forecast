@@ -152,6 +152,14 @@ async function getWeather(locationId) {
   return { hourly: hourly.hourly || [], daily: daily.daily || [] }
 }
 
+async function getTwoWeekWeather(locationId) {
+  const [hourly, daily] = await Promise.all([
+    apiGet('/v7/weather/168h', { location: locationId, lang: 'zh', unit: 'm' }),
+    apiGet('/v7/weather/15d', { location: locationId, lang: 'zh', unit: 'm' })
+  ])
+  return { hourly: hourly.hourly || [], daily: daily.daily || [] }
+}
+
 async function getAlerts(latitude, longitude) {
   try {
     const data = await apiGet(`/weatheralert/v1/current/${latitude}/${longitude}`, { localTime: 'true', lang: 'zh' })
@@ -162,4 +170,4 @@ async function getAlerts(latitude, longitude) {
   }
 }
 
-module.exports = { lookupCity, lookupCoordinates, searchCities, getWeather, getAlerts }
+module.exports = { lookupCity, lookupCoordinates, searchCities, getWeather, getTwoWeekWeather, getAlerts }

@@ -50,7 +50,7 @@
       <view class="window-heading">
         <text>{{forecast.primaryWindow.title}}</text><text class="window-time">建议 {{forecast.primaryWindow.time}}</text>
       </view>
-      <view class="hero card hero-{{forecast.primaryWindow.hero.tier}}">
+      <view class="hero card hero-{{forecast.primaryWindow.hero.tier}}" bindtap="goSkyDetail" data-window-index="0" data-type="{{forecast.primaryWindow.hero.type}}" role="button" aria-label="查看{{forecast.primaryWindow.hero.type}}详情">
         <view>
           <view class="hero-type">{{forecast.primaryWindow.hero.displayTitle}}</view>
           <view class="hero-score">{{forecast.primaryWindow.hero.score}}%</view>
@@ -64,7 +64,7 @@
       <view wx:if="{{forecast.primaryWindow.rainImpact}}" class="sky-rain-impact">{{forecast.primaryWindow.rainImpact}}</view>
 
       <view wx:if="{{forecast.primaryWindow.secondarySkies.length}}" class="sky-list card">
-        <view wx:for="{{forecast.primaryWindow.secondarySkies}}" wx:key="type" class="sky-row">
+        <view wx:for="{{forecast.primaryWindow.secondarySkies}}" wx:key="type" class="sky-row" bindtap="goSkyDetail" data-window-index="0" data-type="{{item.type}}" role="button" aria-label="查看{{item.type}}详情">
           <view>
             <view class="sky-name">{{item.type}} <text class="sky-label sky-{{item.tier}}">{{item.label}}</text></view>
             <view class="sky-reason">{{item.time}} · {{item.reason}}</view>
@@ -77,7 +77,7 @@
         <text>{{forecast.secondaryWindow.title}}</text><text class="window-time">建议 {{forecast.secondaryWindow.time}}</text>
       </view>
       <view class="sky-list card">
-        <view wx:for="{{forecast.secondaryWindow.skies}}" wx:key="type" class="sky-row">
+        <view wx:for="{{forecast.secondaryWindow.skies}}" wx:key="type" class="sky-row" bindtap="goSkyDetail" data-window-index="1" data-type="{{item.type}}" role="button" aria-label="查看{{item.type}}详情">
           <view>
             <view class="sky-name">{{item.type}} <text class="sky-label sky-{{item.tier}}">{{item.label}}</text></view>
             <view class="sky-reason">{{item.time}} · {{item.reason}}</view>
@@ -93,8 +93,10 @@
       </view>
     </view>
 
-    <view class="section-title">未来三天</view>
-    <view class="trend-list card">
+    <view class="trend-heading" bindtap="goTwoWeekWeather" role="button" aria-label="查看未来两周天气">
+      <text class="section-title">未来三天</text><text class="trend-link">查看两周预报 ›</text>
+    </view>
+    <view class="trend-list card" bindtap="goTwoWeekWeather" role="button" aria-label="查看未来两周天气">
       <view wx:for="{{forecast.trend}}" wx:key="day" class="trend-row">
         <text class="trend-day">{{item.day}}</text>
         <text class="trend-weather">{{item.weather}}</text>

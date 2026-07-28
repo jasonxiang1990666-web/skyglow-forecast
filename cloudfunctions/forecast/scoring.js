@@ -100,6 +100,50 @@ function buildItem(type, score, start, end, metrics, direction) {
   }
 }
 
+function buildDetailTimeline(window, hourly) {
+  const lower = window.start.getTime() - 3 * HOUR
+  const upper = window.end.getTime() + 3 * HOUR
+  return hourly
+    .filter((item) => {
+      const time = new Date(item.fxTime).getTime()
+      return time >= lower && time <= upper
+    })
+    .map((item) => {
+      const time = new Date(item.fxTime)
+      const precipitation = number(item.precip, 0)
+      const probability = number(item.pop, 0)
+      return {
+        timestamp: time.getTime(),
+        time: formatTime(time),
+        weather: item.text || '天气变化中',
+        probability,
+        precipitationText: formatRainAmount(precipitation),
+        cloud: Math.round(number(item.cloud, 0)),
+        isWindow: time.getTime() >= window.start.getTime() && time.getTime() <= window.end.getTime(),
+        isRaining: probability >= 40 || precipitation > 0 || isBadWeather(item.text)
+      }
+    })
+}
+
+function buildFactors(metrics) {
+  const favorable = []
+  const unfavorable = []
+
+  if (metrics.cloud >= 30 && metrics.cloud <= 70) favorable.push('云量适中，天空层次更容易显现')
+  else if (metrics.cloud < 30) unfavorable.push('云量偏少，色彩层次可能有限')
+  else unfavorable.push('云层偏厚，日光可能被遮挡')
+
+  if (!metrics.hasPrecipitation && metrics.rainProbability < 40) favorable.push('降水信号较弱，光照条件更稳定')
+  else unfavorable.push('降水可能会削弱光照和能见度')
+
+  if (metrics.visibility >= 8) favorable.push('能见度较好，远处天空更清晰')
+  else if (metrics.visibility < 5) unfavorable.push('能见度有限，色彩可能不够通透')
+
+  if (metrics.wind > 25) unfavorable.push('风力偏大，户外观赏需注意安全')
+
+  return { favorable: favorable.slice(0, 3), unfavorable: unfavorable.slice(0, 3) }
+}
+
 function relativeLabel(date, kind, today) {
   const prefix = date === today ? '今天' : '明日'
   return `${prefix}${kind === 'sunrise' ? '清晨' : '傍晚'}`
@@ -133,10 +177,18 @@ function buildWindow(window, hourly) {
   const hero = skies.reduce((best, item) => item.score > best.score ? item : best)
   return {
     title: window.title,
+    kind: window.kind,
+    date: window.daily.fxDate,
     time: sky.time,
+    startAt: window.start.getTime(),
+    endAt: window.end.getTime(),
+    startTime: formatTime(window.start),
+    endTime: formatTime(window.end),
     skies,
     hero: { ...hero, displayTitle: hero.type },
-    secondarySkies: skies.filter((item) => item.type !== hero.type)
+    secondarySkies: skies.filter((item) => item.type !== hero.type),
+    hourlyTimeline: buildDetailTimeline(window, hourly),
+    factors: buildFactors(metrics)
   }
 }
 
@@ -310,6 +362,49 @@ function trendLabel(date, today) {
   return ['今天', '明天', '后天'][days] || `${date.slice(5, 7)}月${date.slice(8)}日`
 }
 
+function weekLabel(date, today) {
+  const offset = Math.round((parseSunTime(date, '12:00') - parseSunTime(today, '12:00')) / (24 * HOUR))
+  if (offset === 0) return '今天'
+  if (offset === 1) return '明天'
+  return `周${['日', '一', '二', '三', '四', '五', '六'][parseSunTime(date, '12:00').getDay()]}`
+}
+
+function buildTwoWeekForecastView({ city, hourly, daily, now = new Date() }) {
+  const today = chinaDate(now)
+  const days = daily
+    .filter((day) => day.fxDate >= today)
+    .slice(0, 14)
+    .map((day, index) => {
+      const hourlyRecords = index < 7
+        ? hourly.filter((item) => chinaDate(new Date(item.fxTime)) === day.fxDate)
+        : []
+      const hasProbability = hourlyRecords.length > 0
+      const probability = hasProbability
+        ? Math.max(...hourlyRecords.map((item) => number(item.pop, 0)), 0)
+        : null
+      const precipitation = number(day.precip, 0)
+      return {
+        date: day.fxDate,
+        day: weekLabel(day.fxDate, today),
+        dateText: `${Number(day.fxDate.slice(5, 7))}月${Number(day.fxDate.slice(8))}日`,
+        weather: day.textDay || day.textNight || '天气变化中',
+        temperature: `${day.tempMin}–${day.tempMax}℃`,
+        probability,
+        probabilityText: hasProbability ? `${probability}%` : '暂不提供',
+        precipitation,
+        precipitationText: formatRainAmount(precipitation),
+        hasRain: (probability || 0) >= 40 || precipitation > 0 || isBadWeather(day.textDay) || isBadWeather(day.textNight)
+      }
+    })
+
+  if (!days.length) throw new Error('未获得未来两周的天气预报数据')
+  return {
+    city,
+    updatedAt: `更新于 ${formatTime(now)}`,
+    days
+  }
+}
+
 function buildForecastView({ city, hourly, daily, alerts, now = new Date() }) {
   const rainEvents = buildRainEvents(hourly, now)
   const windowDefinitions = getWindows(daily, now)
@@ -341,4 +436,4 @@ function buildForecastView({ city, hourly, daily, alerts, now = new Date() }) {
   }
 }
 
-module.exports = { buildForecastView }
+module.exports = { buildForecastView, buildTwoWeekForecastView }

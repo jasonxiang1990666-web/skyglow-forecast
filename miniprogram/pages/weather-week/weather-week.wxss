@@ -1,0 +1,25 @@
+.week-page { min-height: 100vh; padding: 34rpx 28rpx 56rpx; box-sizing: border-box; }
+.week-header { margin: 8rpx 4rpx 28rpx; }
+.week-city { color: #26384b; font-size: 42rpx; font-weight: 600; }
+.week-subtitle { margin-top: 10rpx; color: #7b8794; font-size: 24rpx; }
+.week-intro { padding: 26rpx 28rpx; background: #f1f7fb; }
+.intro-title { color: #294661; font-size: 28rpx; font-weight: 600; }
+.intro-detail { margin-top: 10rpx; color: #718096; font-size: 22rpx; line-height: 1.65; }
+.day-list { margin-top: 28rpx; overflow: hidden; }
+.day-row { padding: 24rpx 28rpx 22rpx; }
+.day-row + .day-row { border-top: 1rpx solid #edf0f3; }
+.day-rain { background: #f7fbfe; }
+.long-range-note { padding: 22rpx 28rpx; border-top: 1rpx solid #dceaf3; border-bottom: 1rpx solid #dceaf3; background: #f1f7fb; color: #6b8297; font-size: 22rpx; line-height: 1.6; }
+.day-main { display: flex; align-items: center; min-height: 42rpx; color: #536273; font-size: 24rpx; }
+.day-date { width: 168rpx; }
+.day-label { color: #334155; font-weight: 600; }
+.date-label { margin-left: 10rpx; color: #9aa5b1; font-size: 21rpx; }
+.day-weather { width: 108rpx; }
+.day-temperature { margin-left: auto; color: #536273; }
+.rain-data { display: flex; margin-top: 18rpx; padding-top: 16rpx; border-top: 1rpx solid #eef3f6; }
+.rain-metric { display: flex; flex: 1; justify-content: space-between; color: #7b8794; font-size: 21rpx; }
+.rain-metric + .rain-metric { margin-left: 28rpx; }
+.rain-value { color: #356b94; font-weight: 600; }
+.updated-at { margin-top: 24rpx; color: #9aa5b1; font-size: 22rpx; text-align: center; }
+.loading-page, .error-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }
+.retry-button { display: inline-block; margin-top: 28rpx; padding: 16rpx 34rpx; border-radius: 999rpx; background: #eaf3f9; color: #356b94; font-size: 25rpx; }

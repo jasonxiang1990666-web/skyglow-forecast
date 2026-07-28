@@ -1,6 +1,6 @@
 const cloud = require('wx-server-sdk')
-const { lookupCity, lookupCoordinates, searchCities, getWeather, getAlerts } = require('./qweather')
-const { buildForecastView } = require('./scoring')
+const { lookupCity, lookupCoordinates, searchCities, getWeather, getTwoWeekWeather, getAlerts } = require('./qweather')
+const { buildForecastView, buildTwoWeekForecastView } = require('./scoring')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
@@ -25,6 +25,11 @@ exports.main = async (event) => {
   if (!city) throw new Error('缺少城市参数')
 
   const location = await lookupCity(city)
+  if (event.action === 'twoWeekForecast') {
+    const { hourly, daily } = await getTwoWeekWeather(location.id)
+    return buildTwoWeekForecastView({ city: location.name, hourly, daily })
+  }
+
   const [{ hourly, daily }, alerts] = await Promise.all([
     getWeather(location.id),
     getAlerts(location.lat, location.lon)

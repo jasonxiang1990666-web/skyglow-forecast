@@ -1,6 +1,8 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/sky-detail/sky-detail",
+    "pages/weather-week/weather-week",
     "pages/rain/rain",
     "pages/cities/cities",
     "pages/settings/settings"
