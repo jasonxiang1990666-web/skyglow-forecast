@@ -2,6 +2,8 @@
   "pages": [
     "pages/index/index",
     "pages/sky-detail/sky-detail",
+    "pages/viewing-spots/viewing-spots",
+    "pages/spot-detail/spot-detail",
     "pages/weather-week/weather-week",
     "pages/model-map/model-map",
     "pages/rain/rain",

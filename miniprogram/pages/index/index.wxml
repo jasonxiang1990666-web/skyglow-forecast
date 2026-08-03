@@ -54,8 +54,9 @@
         <view class="hero hero-{{forecast.primaryWindow.primarySky.tier}}">
           <view>
             <view class="hero-type">{{forecast.primaryWindow.primarySky.type}}</view>
-            <view class="hero-score">{{forecast.primaryWindow.primarySky.score}}%</view>
+            <view class="hero-score"><text class="hero-score-label">霞况评分</text>{{forecast.primaryWindow.primarySky.score}}<text class="hero-score-unit">分</text></view>
             <view class="hero-label">{{forecast.primaryWindow.primarySky.label}}</view>
+            <view class="hero-probability">{{forecast.primaryWindow.primarySky.probabilityLabel || '模型估算出现概率'}} {{forecast.primaryWindow.primarySky.probability}}%</view>
           </view>
           <view class="hero-detail">
             <view>{{forecast.primaryWindow.primarySky.reason}}</view>
@@ -64,10 +65,10 @@
         </view>
         <view class="sky-row">
           <view>
-            <view class="sky-name">{{forecast.primaryWindow.fireCloud.type}} <text class="sky-label sky-{{forecast.primaryWindow.fireCloud.tier}}">{{forecast.primaryWindow.fireCloud.label}}</text></view>
-            <view class="sky-reason">{{forecast.primaryWindow.fireCloud.time}} · {{forecast.primaryWindow.fireCloud.reason}}</view>
+            <view class="sky-name">{{forecast.primaryWindow.fireCloud.type}} <text class="sky-label fire-vividness-{{forecast.primaryWindow.fireCloud.vividnessLevel}}">{{forecast.primaryWindow.fireCloud.vividnessLabel || forecast.primaryWindow.fireCloud.label}}</text></view>
+            <view class="sky-reason">{{forecast.primaryWindow.fireCloud.time}} · {{forecast.primaryWindow.fireCloud.vividnessReason || forecast.primaryWindow.fireCloud.reason}}</view>
           </view>
-          <view class="sky-score">{{forecast.primaryWindow.fireCloud.score}}%</view>
+          <view class="sky-score"><text wx:if="{{forecast.primaryWindow.fireCloud.vividnessLabel}}">鲜艳度 {{forecast.primaryWindow.fireCloud.vividnessText}}</text><text wx:else>评分 {{forecast.primaryWindow.fireCloud.score}}分</text><text class="sky-probability">概率 {{forecast.primaryWindow.fireCloud.probability}}%</text></view>
         </view>
       </view>
       <view wx:if="{{solarCountdown || forecast.airReference}}" class="atmosphere-reference card">
@@ -94,14 +95,14 @@
             <view class="sky-reason">{{forecast.secondaryWindow.primarySky.time}} · {{forecast.secondaryWindow.primarySky.reason}}</view>
             <view wx:if="{{forecast.secondaryWindow.primarySky.showDirection && !forecast.warning}}" class="direction sky-direction">{{forecast.secondaryWindow.primarySky.direction}}</view>
           </view>
-          <view class="sky-score">{{forecast.secondaryWindow.primarySky.score}}%</view>
+          <view class="sky-score"><text>评分 {{forecast.secondaryWindow.primarySky.score}}分</text><text class="sky-probability">概率 {{forecast.secondaryWindow.primarySky.probability}}%</text></view>
         </view>
         <view class="sky-row">
           <view>
-            <view class="sky-name">{{forecast.secondaryWindow.fireCloud.type}} <text class="sky-label sky-{{forecast.secondaryWindow.fireCloud.tier}}">{{forecast.secondaryWindow.fireCloud.label}}</text></view>
-            <view class="sky-reason">{{forecast.secondaryWindow.fireCloud.time}} · {{forecast.secondaryWindow.fireCloud.reason}}</view>
+            <view class="sky-name">{{forecast.secondaryWindow.fireCloud.type}} <text class="sky-label fire-vividness-{{forecast.secondaryWindow.fireCloud.vividnessLevel}}">{{forecast.secondaryWindow.fireCloud.vividnessLabel || forecast.secondaryWindow.fireCloud.label}}</text></view>
+            <view class="sky-reason">{{forecast.secondaryWindow.fireCloud.time}} · {{forecast.secondaryWindow.fireCloud.vividnessReason || forecast.secondaryWindow.fireCloud.reason}}</view>
           </view>
-          <view class="sky-score">{{forecast.secondaryWindow.fireCloud.score}}%</view>
+          <view class="sky-score"><text wx:if="{{forecast.secondaryWindow.fireCloud.vividnessLabel}}">鲜艳度 {{forecast.secondaryWindow.fireCloud.vividnessText}}</text><text wx:else>评分 {{forecast.secondaryWindow.fireCloud.score}}分</text><text class="sky-probability">概率 {{forecast.secondaryWindow.fireCloud.probability}}%</text></view>
         </view>
       </view>
       <view wx:if="{{forecast.secondaryWindow.rainImpact}}" class="sky-rain-impact">{{forecast.secondaryWindow.rainImpact}}</view>
@@ -122,25 +123,8 @@
         <text class="trend-rain">降水 {{item.precipitation}}</text>
       </view>
     </view>
-    <view wx:if="{{nationalOverview}}" class="national-overview-heading">
-      <text>全国城市霞况概览</text><text>重点城市 · {{nationalOverview.validAt}}</text>
-    </view>
-    <view wx:if="{{nationalOverview}}" class="national-overview-card card" bindtap="goNationalOverview" role="button" aria-label="查看全国重点城市霞况概览">
-      <view class="national-overview-map">
-        <view wx:for="{{nationalOverview.cities}}" wx:key="name" class="national-overview-point" style="left: {{item.left}}%; top: {{item.top}}%; background: {{item.color}};"></view>
-        <view class="national-overview-water">重点城市</view>
-      </view>
-      <view class="national-overview-footer">
-        <view class="national-overview-legend"><text class="national-dot national-high"></text>值得期待</view>
-        <view class="national-overview-legend"><text class="national-dot national-medium"></text>不妨看看</view>
-        <view class="national-overview-legend"><text class="national-dot national-low"></text>不太明显</view>
-        <text class="national-overview-link">查看详情 ›</text>
-      </view>
-      <view class="national-overview-note">{{nationalOverview.note}}</view>
-    </view>
-    <view wx:if="{{nationalOverviewLoading && !nationalOverview}}" class="national-overview-loading">正在汇总全国重点城市预报…</view>
     <view class="updated-at">{{forecast.updatedAt}}</view>
   </view>
 </view>
 
-<view wx:else class="loading-page">正在查看霞光预见…</view>
+<view wx:else class="loading-page">正在获取当前位置与实时 EC/GFS 数据…</view>

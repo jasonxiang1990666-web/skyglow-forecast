@@ -1,0 +1,22 @@
+.spots-page { min-height: 100vh; padding: 34rpx 28rpx 60rpx; box-sizing: border-box; }
+.page-heading { margin: 6rpx 4rpx 26rpx; }
+.page-title { color: #29384b; font-size: 42rpx; font-weight: 600; }
+.page-subtitle { margin-top: 10rpx; color: #7b8794; font-size: 23rpx; line-height: 1.55; }
+.filter-scroll { width: calc(100% + 56rpx); margin: 0 -28rpx 22rpx; white-space: nowrap; }
+.filter-row { display: inline-flex; gap: 14rpx; padding: 0 28rpx; }
+.filter-chip { min-width: 86rpx; padding: 14rpx 22rpx; border-radius: 999rpx; background: #edf2f7; color: #64748b; font-size: 23rpx; text-align: center; }
+.filter-active { background: #fff0dd; color: #9a4e20; font-weight: 600; }
+.featured-spot-card { margin-top: 18rpx; padding: 28rpx 30rpx; }
+.spot-card-top, .spot-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.spot-card-title { display: flex; align-items: center; min-width: 0; color: #334155; font-size: 29rpx; font-weight: 600; }
+.featured-badge { flex: none; margin-right: 12rpx; padding: 4rpx 10rpx; border-radius: 8rpx; background: #e6f2eb; color: #4f7d63; font-size: 19rpx; }
+.favorite-mark { flex: none; color: #b45309; font-size: 21rpx; }
+.spot-tags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 18rpx; }
+.spot-tags text { padding: 5rpx 12rpx; border-radius: 999rpx; background: #f4f6f8; color: #64748b; font-size: 20rpx; }
+.spot-address { margin-top: 16rpx; color: #718096; font-size: 22rpx; }
+.spot-tip { margin-top: 12rpx; color: #536273; font-size: 23rpx; line-height: 1.6; }
+.spot-card-footer { margin-top: 20rpx; color: #8b98a8; font-size: 21rpx; }
+.detail-link { color: #47799f; }
+.empty-card { padding: 34rpx 30rpx; color: #718096; font-size: 24rpx; line-height: 1.65; }
+.page-note { margin: 22rpx 8rpx 0; color: #9aa5b1; font-size: 20rpx; line-height: 1.6; }
+.state-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }

@@ -1,0 +1,84 @@
+[
+  {
+    "id": "beijing-candidate-03",
+    "status": "matched",
+    "alias": "Grand Canal Forest Park, Tongzhou, Beijing",
+    "latitude": 39.869599,
+    "longitude": 116.740689,
+    "displayName": "大运河森林公园, 通州区, 北京市, 中国"
+  },
+  {
+    "id": "beijing-candidate-07",
+    "status": "matched",
+    "alias": "Liangma River, Chaoyang, Beijing",
+    "latitude": 39.966083,
+    "longitude": 116.517512,
+    "displayName": "亮马河, 东坝乡, 朝阳区, 北京市, 中国"
+  },
+  {
+    "id": "guangzhou-candidate-07",
+    "status": "unmatched",
+    "alias": "Nansha Binhai Park, Guangzhou",
+    "error": "No result"
+  },
+  {
+    "id": "hangzhou-candidate-03",
+    "status": "unmatched",
+    "alias": "City Balcony, Qianjiang New Town, Hangzhou",
+    "error": "No result"
+  },
+  {
+    "id": "nanjing-candidate-04",
+    "status": "unmatched",
+    "alias": "Yuzui Wetland Park, Nanjing",
+    "error": "No result"
+  },
+  {
+    "id": "nanjing-candidate-06",
+    "status": "unmatched",
+    "alias": "Muyan Binjiang Scenic Area, Nanjing",
+    "error": "No result"
+  },
+  {
+    "id": "nanjing-candidate-09",
+    "status": "unmatched",
+    "alias": "Niushoushan Cultural Tourism Zone, Nanjing",
+    "error": "No result"
+  },
+  {
+    "id": "wuhan-candidate-09",
+    "status": "unmatched",
+    "alias": "Houguan Lake Wetland Park, Wuhan",
+    "error": "No result"
+  },
+  {
+    "id": "wuhan-candidate-10",
+    "status": "unmatched",
+    "alias": "Jinyin Lake Wetland Park, Wuhan",
+    "error": "No result"
+  },
+  {
+    "id": "xian-candidate-08",
+    "status": "unmatched",
+    "alias": "Baqiao Ecological Wetland Park, Xi An",
+    "error": "No result"
+  },
+  {
+    "id": "xian-candidate-10",
+    "status": "unmatched",
+    "alias": "Fenghe Liangjiatan Wetland Park, Xi An",
+    "error": "No result"
+  },
+  {
+    "id": "chongqing-candidate-01",
+    "status": "unmatched",
+    "alias": "Nanshan Yikeshu Viewing Platform, Chongqing",
+    "error": "No result"
+  },
+  {
+    "id": "chongqing-candidate-02",
+    "status": "unmatched",
+    "alias": "Danzishi Old Street, Chongqing",
+    "error": "No result"
+  }
+]

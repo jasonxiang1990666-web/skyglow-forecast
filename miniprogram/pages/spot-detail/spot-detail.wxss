@@ -1,0 +1,24 @@
+.spot-detail-page { min-height: 100vh; padding: 34rpx 28rpx 60rpx; box-sizing: border-box; }
+.spot-heading { margin: 6rpx 4rpx 28rpx; }
+.heading-title { display: flex; align-items: center; color: #29384b; font-size: 40rpx; font-weight: 600; }
+.featured-badge { margin-right: 14rpx; padding: 5rpx 11rpx; border-radius: 8rpx; background: #e6f2eb; color: #4f7d63; font-size: 20rpx; font-weight: 400; }
+.heading-subtitle { margin-top: 12rpx; color: #7b8794; font-size: 24rpx; }
+.match-card { padding: 30rpx; background: linear-gradient(135deg, #fff3e2, #fee8d5 58%, #edf2fa); }
+.match-kicker { color: #9a4e20; font-size: 24rpx; }
+.match-title { margin-top: 10rpx; color: #7c3f1d; font-size: 38rpx; font-weight: 600; }
+.match-meta { margin-top: 14rpx; color: #7b6d61; font-size: 23rpx; }
+.section-title { margin: 36rpx 4rpx 16rpx; color: #334155; font-size: 30rpx; font-weight: 600; }
+.arrival-card, .tips-card { padding: 28rpx 30rpx; }
+.arrival-main { color: #475569; font-size: 26rpx; line-height: 1.6; }
+.arrival-sub { margin-top: 12rpx; color: #7b8794; font-size: 22rpx; }
+.tips-card { color: #536273; font-size: 25rpx; line-height: 1.7; }
+.safety-note { margin-top: 16rpx; color: #a65d27; font-size: 23rpx; }
+.verified-note { margin-top: 16rpx; color: #9aa5b1; font-size: 21rpx; }
+.actions { display: flex; gap: 18rpx; margin-top: 32rpx; }
+.favorite-button, .share-button { display: flex; flex: 1; align-items: center; justify-content: center; height: 82rpx; border: 1rpx solid #d8e0e8; border-radius: 18rpx; box-sizing: border-box; background: #fff; color: #536273; font-size: 25rpx; }
+.favorite-active { border-color: #f4d5ae; background: #fff8ef; color: #a65d27; }
+.share-button::after { border: 0; }
+.navigate-button { display: flex; align-items: center; justify-content: center; height: 88rpx; margin-top: 18rpx; border-radius: 18rpx; background: #356b94; color: #fff; font-size: 27rpx; font-weight: 600; }
+.detail-note { margin: 22rpx 8rpx 0; color: #9aa5b1; font-size: 20rpx; line-height: 1.6; }
+.state-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }
+.retry-button { display: inline-block; margin-top: 28rpx; padding: 16rpx 34rpx; border-radius: 999rpx; background: #eaf3f9; color: #356b94; font-size: 25rpx; }

@@ -15,7 +15,9 @@
 .summary-low { background: #f1f5f9; }
 .summary-high { background: linear-gradient(135deg, #fff3e2, #fee8d5 58%, #e9eefb); }
 .summary-type { color: #475569; font-size: 28rpx; }
-.summary-score { margin-top: 8rpx; color: #9a4e20; font-size: 74rpx; font-weight: 600; line-height: 1; }
+.summary-score { display: flex; align-items: baseline; gap: 8rpx; margin-top: 8rpx; color: #9a4e20; font-size: 74rpx; font-weight: 600; line-height: 1; }
+.summary-score-label { color: #7b5a42; font-size: 22rpx; font-weight: 400; }
+.summary-score-unit { font-size: 30rpx; }
 .summary-low .summary-score, .summary-low .summary-label { color: #64748b; }
 .summary-label { margin-top: 14rpx; color: #7c3f1d; font-size: 28rpx; font-weight: 600; }
 .summary-right { max-width: 270rpx; color: #5d6470; font-size: 23rpx; line-height: 1.7; text-align: right; }
@@ -30,9 +32,25 @@
 .sky-low { color: #7b8794; }
 .sky-reason { margin-top: 10rpx; color: #7b8794; font-size: 22rpx; line-height: 1.5; }
 .sky-score { margin-left: 18rpx; color: #475569; font-size: 36rpx; font-weight: 600; }
+.detail-fire-row .sky-score { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; font-size: 25rpx; }
+.sky-probability { color: #718096; font-size: 21rpx; font-weight: 400; }
+.probability-note { margin: 14rpx 6rpx 0; color: #7b8794; font-size: 21rpx; line-height: 1.6; }
 .section-title { margin: 36rpx 4rpx 16rpx; color: #334155; font-size: 30rpx; font-weight: 600; }
 .advice-card { padding: 28rpx 30rpx; color: #536273; font-size: 25rpx; line-height: 1.7; }
 .rain-impact { margin: 12rpx 8rpx 0; color: #a65d27; font-size: 23rpx; line-height: 1.6; }
+.featured-heading { display: flex; align-items: baseline; justify-content: space-between; }
+.featured-heading .section-title { margin-bottom: 16rpx; }
+.featured-more { margin-right: 4rpx; color: #47799f; font-size: 22rpx; }
+.featured-card { overflow: hidden; }
+.featured-state { padding: 30rpx; color: #718096; font-size: 23rpx; line-height: 1.6; }
+.featured-row { display: flex; align-items: center; justify-content: space-between; padding: 26rpx 30rpx; }
+.featured-row + .featured-row { border-top: 1rpx solid #edf0f3; }
+.featured-main { min-width: 0; flex: 1; }
+.featured-name { display: flex; align-items: center; color: #334155; font-size: 27rpx; font-weight: 600; }
+.featured-badge { flex: none; margin-right: 10rpx; padding: 4rpx 10rpx; border-radius: 8rpx; background: #e6f2eb; color: #4f7d63; font-size: 19rpx; font-weight: 400; }
+.featured-tags, .featured-address { margin-top: 9rpx; color: #718096; font-size: 21rpx; line-height: 1.5; }
+.featured-side { display: flex; flex: 0 0 70rpx; flex-direction: column; align-items: flex-end; margin-left: 16rpx; color: #8b98a8; font-size: 20rpx; }
+.featured-link { margin-top: 10rpx; color: #47799f; font-size: 22rpx; }
 .nearby-card { overflow: hidden; }
 .nearby-intro, .nearby-empty { padding: 28rpx 30rpx; }
 .nearby-title { color: #334155; font-size: 27rpx; font-weight: 600; }

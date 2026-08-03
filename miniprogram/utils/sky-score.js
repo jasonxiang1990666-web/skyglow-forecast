@@ -12,6 +12,7 @@ function buildSkyItem(item) {
   const tier = getTier(item.score)
   return {
     ...item,
+    probability: Number.isFinite(Number(item.probability)) ? Number(item.probability) : (Number(item.score) || 0),
     tier: tier.key,
     label: tier.label,
     showDirection: tier.key === 'high' && Boolean(item.direction)

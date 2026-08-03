@@ -15,32 +15,25 @@
     <view class="warning-detail">{{warning.detail}}</view>
   </view>
 
-  <view class="detail-sky-card card">
-    <view class="summary-card summary-{{selected.tier}}">
-      <view>
-        <view class="summary-type">{{selected.type}}</view>
-        <view class="summary-score">{{selected.score}}%</view>
-        <view class="summary-label">{{selected.label}}</view>
-      </view>
-      <view class="summary-right">
-        <view>{{skyWindow.time}}</view>
-        <view class="summary-reason">{{selected.reason}}</view>
-        <view wx:if="{{selected.showDirection && !warning}}" class="direction">{{selected.direction}}</view>
-      </view>
-    </view>
-    <view wx:if="{{fireCloud}}" class="detail-fire-row">
-      <view>
-        <view class="sky-name">火烧云 <text class="sky-label sky-{{fireCloud.tier}}">{{fireCloud.label}}</text></view>
-        <view class="sky-reason">{{fireCloud.time}} · {{fireCloud.reason}}</view>
-        <view wx:if="{{fireCloud.showDirection && !warning}}" class="direction detail-fire-direction">{{fireCloud.direction}}</view>
-      </view>
-      <view class="sky-score">{{fireCloud.score}}%</view>
-    </view>
+  <view class="featured-heading">
+    <text class="section-title">精选观赏点</text>
+    <text class="featured-more" bindtap="goFeaturedSpots">查看全部 ›</text>
   </view>
 
-  <view class="section-title">观赏建议</view>
-  <view class="advice-card card">{{advice}}</view>
-  <view wx:if="{{skyWindow.rainImpact}}" class="rain-impact">{{skyWindow.rainImpact}}</view>
+  <view class="featured-card card">
+    <view wx:if="{{featuredLoading}}" class="featured-state">正在加载{{city}}精选观赏点…</view>
+    <view wx:elif="{{featuredPreviewSpots.length}}">
+      <view wx:for="{{featuredPreviewSpots}}" wx:key="id" class="featured-row" bindtap="goFeaturedSpot" data-id="{{item.id}}" role="button" aria-label="查看精选观赏点{{item.name}}详情">
+        <view class="featured-main">
+          <view class="featured-name"><text class="featured-badge">精选</text><text>{{item.name}}</text></view>
+          <view class="featured-tags">{{item.sceneText}}<text wx:if="{{item.directionText}}"> · {{item.directionText}}</text><text> · 开阔度 {{item.openness}}/5</text></view>
+          <view class="featured-address">{{item.district ? item.district + ' · ' : ''}}{{item.address || item.type}}</view>
+        </view>
+        <view class="featured-side"><text>查看</text><text class="featured-link">详情 ›</text></view>
+      </view>
+    </view>
+    <view wx:else class="featured-state">{{featuredSpots.message || '本城市的精选观赏点正在整理中。'}}</view>
+  </view>
 
   <view class="section-title">附近开阔观赏点</view>
   <view class="nearby-card card">
@@ -83,30 +76,6 @@
     <view class="air-note">{{airReference.note}}</view>
   </view>
 
-  <view class="section-title">观赏条件分析</view>
-  <view class="factor-card card">
-    <view wx:if="{{skyWindow.factors.favorable.length}}" class="factor-group">
-      <view class="factor-heading factor-good">有利条件</view>
-      <view wx:for="{{skyWindow.factors.favorable}}" wx:key="*this" class="factor-item">{{item}}</view>
-    </view>
-    <view wx:if="{{skyWindow.factors.unfavorable.length}}" class="factor-group factor-group-last">
-      <view class="factor-heading factor-bad">需要留意</view>
-      <view wx:for="{{skyWindow.factors.unfavorable}}" wx:key="*this" class="factor-item">{{item}}</view>
-    </view>
-  </view>
-
-  <view class="timeline-heading">
-    <text class="section-title">时段走势</text><text class="timeline-note">高亮为观赏窗口</text>
-  </view>
-  <view wx:if="{{skyWindow.hourlyTimeline.length}}" class="timeline-card card">
-    <view wx:for="{{skyWindow.hourlyTimeline}}" wx:key="timestamp" class="hourly-row {{item.isWindow ? 'hourly-window' : ''}}">
-      <text class="hour-time">{{item.time}}</text>
-      <text class="hour-weather">{{item.weather}}</text>
-      <text class="hour-probability">降水 {{item.probability}}%</text>
-      <text class="hour-cloud">云量 {{item.cloud}}%</text>
-    </view>
-  </view>
-  <view wx:else class="timeline-empty card">暂未获得该时段的逐小时预报</view>
   <view class="updated-at">{{updatedAt}}</view>
 </view>
 
