@@ -1,0 +1,9 @@
+{
+  "triggers": [
+    {
+      "name": "sync-gfs-shanghai",
+      "type": "timer",
+      "config": "0 30 4,10,16,22 * * *"
+    }
+  ]
+}

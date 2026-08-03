@@ -124,6 +124,9 @@ Page({
           const city = response.result && response.result.city
           if (!city) throw new Error('未找到定位城市')
           wx.setStorageSync('selectedCity', city)
+          wx.setStorageSync('selectedLocationLabel', response.result.locationLabel || city)
+          wx.setStorageSync('selectedCitySource', 'gps')
+          wx.setStorageSync('selectedCoordinates', { latitude, longitude })
           wx.navigateBack()
         } catch (error) {
           wx.showToast({ title: '定位城市失败，可手动选择', icon: 'none' })
@@ -141,6 +144,9 @@ Page({
   selectCity(event) {
     const city = event.currentTarget.dataset.city
     wx.setStorageSync('selectedCity', city)
+    wx.removeStorageSync('selectedLocationLabel')
+    wx.setStorageSync('selectedCitySource', 'manual')
+    wx.removeStorageSync('selectedCoordinates')
     wx.navigateBack()
   }
 })

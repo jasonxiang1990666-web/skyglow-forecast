@@ -1,4 +1,4 @@
-const { getNext24HourForecast, getNearbyViewingSpots } = require('../../services/weather')
+const { getNext24HourForecast, getNearbyViewingSpots, getFeaturedViewingSpots } = require('../../services/weather')
 
 function countdownText(minutes) {
   const safeMinutes = Math.max(0, minutes)
@@ -27,6 +27,9 @@ Page({
     nearbySpots: null,
     nearbyLoading: false,
     nearbyMessage: '',
+    featuredSpots: null,
+    featuredPreviewSpots: [],
+    featuredLoading: false,
     advice: '',
     countdown: null,
     loading: true,
@@ -75,6 +78,7 @@ Page({
           hourlyTimeline: skyWindow.hourlyTimeline || []
         }
         this.setData({
+          city: forecast.locationLabel || wx.getStorageSync('selectedLocationLabel') || forecast.city || city,
           skyWindow: normalizedWindow,
           selected,
           fireCloud,
@@ -86,6 +90,7 @@ Page({
         })
         wx.setNavigationBarTitle({ title: `${selected.type}与火烧云详情` })
         this.startCountdown()
+        this.loadFeaturedSpots(city, normalizedWindow)
       })
       .catch(() => {
         this.setData({ loading: false, loadError: '暂时无法加载霞况详情，请稍后重试。' })
@@ -98,6 +103,41 @@ Page({
 
   retry() {
     this.loadDetail()
+  },
+
+  loadFeaturedSpots(city, skyWindow) {
+    this.setData({ featuredLoading: true, featuredSpots: null, featuredPreviewSpots: [] })
+    getFeaturedViewingSpots(city, { scene: skyWindow.kind })
+      .then((featuredSpots) => this.setData({
+        featuredSpots,
+        featuredPreviewSpots: (featuredSpots.spots || []).slice(0, 2),
+        featuredLoading: false
+      }))
+      .catch((error) => {
+        console.warn('Featured viewing spots unavailable', error)
+        this.setData({
+          featuredLoading: false,
+          featuredSpots: { enabled: false, spots: [], message: '精选观赏点暂时无法获取。' },
+          featuredPreviewSpots: []
+        })
+      })
+  },
+
+  goFeaturedSpots() {
+    const skyWindow = this.data.skyWindow
+    if (!skyWindow) return
+    const city = wx.getStorageSync('selectedCity') || this.data.city
+    const query = `city=${encodeURIComponent(city)}&scene=${encodeURIComponent(skyWindow.kind || '')}&windowStart=${Number(skyWindow.startAt) || 0}`
+    wx.navigateTo({ url: `/pages/viewing-spots/viewing-spots?${query}` })
+  },
+
+  goFeaturedSpot(event) {
+    const id = event.currentTarget.dataset.id
+    const skyWindow = this.data.skyWindow
+    if (!id || !skyWindow) return
+    const city = wx.getStorageSync('selectedCity') || this.data.city
+    const query = `id=${encodeURIComponent(id)}&city=${encodeURIComponent(city)}&scene=${encodeURIComponent(skyWindow.kind || '')}&windowStart=${Number(skyWindow.startAt) || 0}`
+    wx.navigateTo({ url: `/pages/spot-detail/spot-detail?${query}` })
   },
 
   loadNearbySpots() {

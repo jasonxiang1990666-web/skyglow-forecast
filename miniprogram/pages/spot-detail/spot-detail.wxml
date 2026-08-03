@@ -1,0 +1,36 @@
+<view wx:if="{{!loading && spot}}" class="spot-detail-page">
+  <view class="spot-heading">
+    <view class="heading-title"><text class="featured-badge">精选</text><text>{{spot.name}}</text></view>
+    <view class="heading-subtitle">{{spot.city}}{{spot.district ? ' · ' + spot.district : ''}}</view>
+  </view>
+
+  <view class="match-card card">
+    <view class="match-kicker">适合本次{{sceneLabel}}</view>
+    <view class="match-title">{{spot.sceneText || '适合开阔天空观赏'}}</view>
+    <view class="match-meta">{{spot.directionText || '建议优先选择无遮挡方向'}} · 开阔度 {{spot.openness}}/5</view>
+  </view>
+
+  <view class="section-title">到达建议</view>
+  <view class="arrival-card card">
+    <view class="arrival-main">{{arrivalTip}}</view>
+    <view class="arrival-sub">{{spot.address || '请以地图定位为准'}} · {{spot.type}}</view>
+  </view>
+
+  <view class="section-title">观赏提示</view>
+  <view class="tips-card card">
+    <view>{{spot.tips}}</view>
+    <view wx:if="{{spot.safetyNotice}}" class="safety-note">注意：{{spot.safetyNotice}}</view>
+    <view wx:if="{{spot.verifiedAt}}" class="verified-note">最近核验：{{spot.verifiedAt}}</view>
+  </view>
+
+  <view class="actions">
+    <view class="favorite-button {{isFavorite ? 'favorite-active' : ''}}" bindtap="toggleFavorite">{{isFavorite ? '已收藏' : '收藏观赏点'}}</view>
+    <button class="share-button" open-type="share">分享给微信好友</button>
+  </view>
+  <view class="navigate-button" bindtap="navigate">微信内置地图导航</view>
+
+  <view class="detail-note">精选点位由人工核验维护；请以现场开放状态、视野和安全情况为准。</view>
+</view>
+
+<view wx:elif="{{loadError}}" class="state-page"><view>{{loadError}}</view><view class="retry-button" bindtap="retry">重新加载</view></view>
+<view wx:else class="state-page">正在加载观赏点详情…</view>

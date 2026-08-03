@@ -1,0 +1,32 @@
+<view wx:if="{{!loading}}" class="spots-page">
+  <view class="page-heading">
+    <view class="page-title">{{city}}观赏点</view>
+    <view class="page-subtitle">人工核验的开阔点位，适合观赏朝霞、晚霞与火烧云</view>
+  </view>
+
+  <scroll-view scroll-x="true" class="filter-scroll" show-scrollbar="false">
+    <view class="filter-row">
+      <view wx:for="{{filters}}" wx:key="key" class="filter-chip {{activeFilter === item.key ? 'filter-active' : ''}}" bindtap="changeFilter" data-key="{{item.key}}">{{item.label}}</view>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{visibleSpots.length}}" class="spot-list">
+    <view wx:for="{{visibleSpots}}" wx:key="id" class="featured-spot-card card" bindtap="goSpotDetail" data-id="{{item.id}}" role="button" aria-label="查看{{item.name}}详情">
+      <view class="spot-card-top">
+        <view class="spot-card-title"><text class="featured-badge">精选</text><text>{{item.name}}</text></view>
+        <text wx:if="{{item.isFavorite}}" class="favorite-mark">已收藏</text>
+      </view>
+      <view class="spot-tags"><text>{{item.sceneText}}</text><text wx:if="{{item.directionText}}">{{item.directionText}}</text><text>开阔度 {{item.openness}}/5</text></view>
+      <view class="spot-address">{{item.district ? item.district + ' · ' : ''}}{{item.address || item.type}}</view>
+      <view class="spot-tip">{{item.tips}}</view>
+      <view class="spot-card-footer"><text>{{item.distanceText || '城市精选点位'}}</text><text class="detail-link">查看详情 ›</text></view>
+    </view>
+  </view>
+
+  <view wx:elif="{{activeFilter === 'favorites'}}" class="empty-card card">还没有收藏观赏点。打开点位详情后，点击“收藏”即可保存。</view>
+  <view wx:else class="empty-card card">{{message || '本城市的精选观赏点正在整理中。'}}</view>
+
+  <view class="page-note">精选点位由人工核验维护；请以现场开放状态、视野和安全情况为准。</view>
+</view>
+
+<view wx:else class="state-page">正在加载精选观赏点…</view>

@@ -44,10 +44,14 @@
 .hero-low { background: #f1f5f9; }
 .hero-medium { background: linear-gradient(135deg, #f8f4ec, #f6efe4); }
 .hero-type { color: #475569; font-size: 30rpx; }
-.hero-score { margin-top: 8rpx; color: #9a4e20; font-size: 84rpx; font-weight: 600; line-height: 1; }
+.hero-score { display: flex; align-items: baseline; gap: 8rpx; margin-top: 8rpx; color: #9a4e20; font-size: 84rpx; font-weight: 600; line-height: 1; }
+.hero-score-label { color: #7b5a42; font-size: 22rpx; font-weight: 400; }
+.hero-score-unit { font-size: 32rpx; }
 .hero-low .hero-score { color: #64748b; }
 .hero-label { margin-top: 16rpx; color: #7c3f1d; font-size: 30rpx; font-weight: 600; }
 .hero-low .hero-label { color: #64748b; }
+.hero-probability { margin-top: 10rpx; color: #8b725e; font-size: 21rpx; }
+.hero-low .hero-probability { color: #7b8794; }
 .hero-detail { max-width: 248rpx; color: #5d6470; font-size: 24rpx; line-height: 1.8; text-align: right; }
 .direction { margin-top: 12rpx; color: #9a4e20; font-weight: 600; }
 .sky-direction { font-size: 22rpx; }
@@ -63,8 +67,14 @@
 .sky-high { color: #b45309; }
 .sky-medium { color: #8a6a3f; }
 .sky-low { color: #7b8794; }
+.fire-vividness-large { color: #b45309; }
+.fire-vividness-medium { color: #c27632; }
+.fire-vividness-small { color: #8a6a3f; }
+.fire-vividness-none { color: #7b8794; }
 .sky-reason, .rain-detail { margin-top: 10rpx; color: #7b8794; font-size: 24rpx; }
 .sky-score, .rain-score { color: #475569; font-size: 36rpx; font-weight: 600; }
+.sky-score { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; font-size: 25rpx; }
+.sky-probability { color: #718096; font-size: 21rpx; font-weight: 400; }
 .rain-active { background: #f2f7fb; }
 .rain-active .rain-score { color: #356b94; }
 .rain-section { margin-top: 30rpx; }
@@ -111,6 +121,11 @@
 .national-overview-link { margin-left: auto; color: #47799f; }
 .national-overview-note { margin-top: 14rpx; color: #8b98a8; font-size: 20rpx; line-height: 1.5; }
 .national-overview-loading { margin: 16rpx 4rpx 0; color: #8b98a8; font-size: 22rpx; }
+
+/* 全国城市概览改为独立页面，不在首页占用首屏和滚动空间。 */
+.national-overview-heading,
+.national-overview-card,
+.national-overview-loading { display: none; }
 .updated-at { margin-top: 22rpx; color: #9aa5b1; font-size: 22rpx; text-align: center; }
 .warning-card { margin-top: 42rpx; padding: 30rpx; border-radius: 28rpx; background: #fff1f0; color: #a53b36; }
 .warning-title { font-size: 32rpx; font-weight: 600; }

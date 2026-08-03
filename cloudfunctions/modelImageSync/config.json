@@ -1,0 +1,9 @@
+{
+  "triggers": [
+    {
+      "name": "render-shanghai-model-images",
+      "type": "timer",
+      "config": "0 0 5,11,17,23 * * *"
+    }
+  ]
+}

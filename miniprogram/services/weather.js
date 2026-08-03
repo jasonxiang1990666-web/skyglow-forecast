@@ -52,12 +52,28 @@ function groupSkyWindows(forecast) {
   const windows = forecast.skyWindows || [forecast.primaryWindow, forecast.secondaryWindow].filter(Boolean)
   const skyWindows = windows.map((skyWindow) => {
     const skies = Array.isArray(skyWindow.skies) ? skyWindow.skies.map((item) => {
-      if (item.tier && item.label) return item
+      const normalized = {
+        ...item,
+        probability: Number.isFinite(Number(item.probability)) ? Number(item.probability) : (Number(item.score) || 0)
+      }
+      if (normalized.tier && normalized.label) return normalized
       const tier = getTier(Number(item.score) || 0)
-      return { ...item, tier: tier.key, label: tier.label, showDirection: tier.key === 'high' && Boolean(item.direction) }
+      return { ...normalized, tier: tier.key, label: tier.label, showDirection: tier.key === 'high' && Boolean(item.direction) }
     }) : []
-    const primarySky = skyWindow.primarySky || skies.find((item) => item.type === '朝霞' || item.type === '晚霞') || skyWindow.hero || skies[0]
-    const fireCloud = skyWindow.fireCloud || skies.find((item) => item.type === '火烧云') || null
+    const primarySky = skies.find((item) => item.type === '朝霞' || item.type === '晚霞') || skyWindow.primarySky || skyWindow.hero || skies[0]
+    const fireCloud = skies.find((item) => item.type === '火烧云') || skyWindow.fireCloud || null
+    if (fireCloud && !fireCloud.vividnessLabel) {
+      const vividness = Number(fireCloud.vividness)
+      const fallbackValue = Number.isFinite(vividness) ? vividness : Number(fireCloud.score || 0) / 100
+      const vividnessLevel = fallbackValue >= 1 ? 'large' : fallbackValue >= 0.5 ? 'medium' : fallbackValue >= 0.2 ? 'small' : 'none'
+      const vividnessLabel = vividnessLevel === 'large' ? '大烧' : vividnessLevel === 'medium' ? '中烧' : vividnessLevel === 'small' ? '小烧' : '无'
+      Object.assign(fireCloud, {
+        vividness: Number(fallbackValue.toFixed(2)),
+        vividnessText: fallbackValue.toFixed(2),
+        vividnessLevel,
+        vividnessLabel
+      })
+    }
     return {
       ...skyWindow,
       skies,
@@ -75,11 +91,31 @@ function groupSkyWindows(forecast) {
   }
 }
 
-function getNext24HourForecast(city) {
+function getStoredCoordinates() {
+  try {
+    const coordinates = wx.getStorageSync('selectedCoordinates')
+    if (!coordinates) return null
+    const latitude = Number(coordinates.latitude)
+    const longitude = Number(coordinates.longitude)
+    return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null
+  } catch (error) {
+    return null
+  }
+}
+
+function getNext24HourForecast(city, options = {}) {
   if (USE_CLOUD_FORECAST) {
+    const storedCoordinates = getStoredCoordinates()
+    const latitude = Number(options.latitude ?? (storedCoordinates && storedCoordinates.latitude))
+    const longitude = Number(options.longitude ?? (storedCoordinates && storedCoordinates.longitude))
+    const data = { city }
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      data.latitude = latitude
+      data.longitude = longitude
+    }
     return wx.cloud.callFunction({
       name: 'forecast',
-      data: { city }
+      data
     }).then((response) => {
       if (!response.result || !response.result.primaryWindow) {
         throw new Error('云函数未返回有效预报')
@@ -193,4 +229,40 @@ function getNearbyViewingSpots({ latitude, longitude, scene }) {
   })
 }
 
-module.exports = { getNext24HourForecast, getTwoWeekWeatherForecast, getNationalCityOverview, getNearbyViewingSpots }
+function getFeaturedViewingSpots(city, options = {}) {
+  return withTimeout(wx.cloud.callFunction({
+    name: 'forecast',
+    data: {
+      action: 'featuredViewingSpots',
+      city,
+      scene: options.scene || '',
+      latitude: options.latitude,
+      longitude: options.longitude
+    }
+  }), 9000).then((response) => {
+    const result = response.result
+    if (!result || !Array.isArray(result.spots)) {
+      throw new Error('云函数未返回有效的精选观赏点')
+    }
+    return result
+  })
+}
+
+function getFeaturedViewingSpot(id) {
+  return withTimeout(wx.cloud.callFunction({
+    name: 'forecast',
+    data: { action: 'featuredViewingSpotDetail', id }
+  }), 9000).then((response) => {
+    if (!response.result) throw new Error('云函数未返回观赏点详情')
+    return response.result
+  })
+}
+
+module.exports = {
+  getNext24HourForecast,
+  getTwoWeekWeatherForecast,
+  getNationalCityOverview,
+  getNearbyViewingSpots,
+  getFeaturedViewingSpots,
+  getFeaturedViewingSpot
+}
