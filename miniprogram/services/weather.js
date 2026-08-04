@@ -95,9 +95,17 @@ function getStoredCoordinates() {
   try {
     const coordinates = wx.getStorageSync('selectedCoordinates')
     if (!coordinates) return null
-    const latitude = Number(coordinates.latitude)
-    const longitude = Number(coordinates.longitude)
-    return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null
+    const rawLatitude = coordinates.latitude
+    const rawLongitude = coordinates.longitude
+    // 空字符串会被 Number('') 转成 0，不能把它误判为有效的 0,0 坐标。
+    if (rawLatitude === '' || rawLongitude === '' || rawLatitude === null || rawLongitude === null || rawLatitude === undefined || rawLongitude === undefined) {
+      return null
+    }
+    const latitude = Number(rawLatitude)
+    const longitude = Number(rawLongitude)
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+    if (latitude === 0 && longitude === 0) return null
+    return { latitude, longitude }
   } catch (error) {
     return null
   }
@@ -109,7 +117,7 @@ function getNext24HourForecast(city, options = {}) {
     const latitude = Number(options.latitude ?? (storedCoordinates && storedCoordinates.latitude))
     const longitude = Number(options.longitude ?? (storedCoordinates && storedCoordinates.longitude))
     const data = { city }
-    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    if (Number.isFinite(latitude) && Number.isFinite(longitude) && !(latitude === 0 && longitude === 0)) {
       data.latitude = latitude
       data.longitude = longitude
     }

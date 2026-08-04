@@ -1,7 +1,9 @@
 import io
+import base64
+import json
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -79,36 +81,37 @@ def download_ec(request: RenderRequest, target: Path) -> tuple[int, int]:
     # most recent actual HRES cycle before its requested valid time.
     run_hour = 12 if snapshot_run.hour >= 12 else 0
     run_at = snapshot_run.replace(hour=run_hour, minute=0, second=0, microsecond=0)
-    requested_step = max(0, round((request.validAt - int(run_at.timestamp() * 1000)) / 3600000))
-    # ECMWF Open Data IFS HRES surface fields are published every three hours.
-    step = max(0, int(round(requested_step / 3.0) * 3))
-    # The primary ECMWF mirror can briefly lag while a new run is published.
-    # AWS is an official Open Data mirror; use it first, then fall back to the
-    # primary endpoint if needed.
+    # HRES fields are published every three hours. A newly published cycle
+    # may not contain the requested long lead time yet, so try older cycles.
+    run_candidates = [run_at - timedelta(hours=12 * offset) for offset in range(3)]
     errors = []
-    for source in ("aws", "ecmwf"):
-        try:
-            client = ECMWFClient(source=source)
-            client.retrieve(
-                date=run_at.strftime("%Y%m%d"),
-                time=run_at.strftime("%H"),
-                stream="oper",
-                type="fc",
-                levtype="sfc",
-                param="tcc",
-                step=step,
-                target=str(target),
-            )
-            if target.exists() and target.stat().st_size >= 500:
-                break
-        except Exception as exc:
-            errors.append(f"{source}: {exc}")
-            target.unlink(missing_ok=True)
-    else:
-        raise RuntimeError("ECMWF Open Data mirror unavailable: " + " | ".join(errors))
-    if not target.exists() or target.stat().st_size < 500:
-        raise RuntimeError("EC 返回内容过小，目标起报或预报时效暂不可用")
-    return int(run_at.timestamp() * 1000) + step * 3600000, int(run_at.timestamp() * 1000)
+    for candidate_run in run_candidates:
+        requested_step = max(
+            0, round((request.validAt - int(candidate_run.timestamp() * 1000)) / 3600000)
+        )
+        step = max(0, int(round(requested_step / 3.0) * 3))
+        for source in ("aws", "ecmwf"):
+            try:
+                client = ECMWFClient(source=source)
+                client.retrieve(
+                    date=candidate_run.strftime("%Y%m%d"),
+                    time=candidate_run.strftime("%H"),
+                    stream="oper",
+                    type="fc",
+                    levtype="sfc",
+                    param="tcc",
+                    step=step,
+                    target=str(target),
+                )
+                if target.exists() and target.stat().st_size >= 500:
+                    return (
+                        int(candidate_run.timestamp() * 1000) + step * 3600000,
+                        int(candidate_run.timestamp() * 1000),
+                    )
+            except Exception as exc:
+                errors.append(f"{source} {candidate_run:%Y%m%d%H} step={step}: {exc}")
+                target.unlink(missing_ok=True)
+    raise RuntimeError("ECMWF Open Data mirror unavailable: " + " | ".join(errors[-4:]))
 
 
 def find_coord(dataset, names):
@@ -121,7 +124,28 @@ def find_coord(dataset, names):
 
 
 def cloud_field(path: Path):
-    dataset = xr.open_dataset(path, engine="cfgrib", backend_kwargs={"indexpath": ""})
+    dataset = None
+    errors = []
+    # GFS TCDC files may contain both instantaneous and averaged messages.
+    # cfgrib otherwise sees duplicate keys and refuses to open the dataset.
+    for filter_by_keys in (
+        {"stepType": "instant"},
+        {"stepType": "avg"},
+        {},
+    ):
+        try:
+            backend_kwargs = {"indexpath": ""}
+            if filter_by_keys:
+                backend_kwargs["filter_by_keys"] = filter_by_keys
+            candidate = xr.open_dataset(path, engine="cfgrib", backend_kwargs=backend_kwargs)
+            if candidate.data_vars:
+                dataset = candidate
+                break
+            candidate.close()
+        except Exception as exc:
+            errors.append(f"{filter_by_keys or 'unfiltered'}: {exc}")
+    if dataset is None:
+        raise RuntimeError("GRIB 云量消息无法解析：" + " | ".join(errors[-2:]))
     try:
         if not dataset.data_vars:
             raise RuntimeError("GRIB 图层中没有云量字段")
@@ -164,8 +188,45 @@ def make_png(request: RenderRequest, lats, lons, values, effective_valid_at: int
     return output.getvalue()
 
 
+def image_features(values: np.ndarray) -> dict:
+    """Return features from the values encoded by the cloud-cover colour map.
+
+    These are deliberately named *cloud-map* features: the palette represents
+    model cloud cover, not the actual RGB colour of the sunset.  Keeping this
+    distinction makes the signal useful for scoring without presenting it as a
+    camera-like sky-colour observation.
+    """
+    finite = np.asarray(values, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        raise RuntimeError("云图色阶数据为空")
+    balanced = np.clip(1.0 - np.abs(finite - 55.0) / 55.0, 0.0, 1.0)
+    carrier = np.clip((finite >= 15.0) & (finite <= 85.0), 0.0, 1.0)
+    if finite.size > 1:
+        spread = float(np.nanstd(finite))
+        continuity = 1.0 - np.clip(spread / 50.0, 0.0, 1.0)
+    else:
+        continuity = 0.5
+    return {
+        "source": "cloud-map-values",
+        "status": "ready",
+        "colorPotential": round(float(np.mean(balanced) * 100), 1),
+        "cloudCarrier": round(float(np.mean(carrier) * 100), 1),
+        "spatialContinuity": round(float(continuity * 100), 1),
+        "sampleCount": int(finite.size),
+        "confidence": 75,
+        "note": "由 EC/GFS 云量色阶提取；不是实际天空 RGB 颜色"
+    }
+
+
 @app.get("/health")
 def health():
+    return {"ok": True}
+
+
+@app.get("/__tcb_probe")
+def tcb_probe():
+    # CloudBase Run uses this endpoint for its container health probe.
     return {"ok": True}
 
 
@@ -181,9 +242,11 @@ def render(request: RenderRequest, authorization: str | None = Header(default=No
                 effective_valid_at, effective_run_at = download_gfs(request, target), request.runAt
             lats, lons, values = cloud_field(target)
             image = make_png(request, lats, lons, values, effective_valid_at)
+            features = image_features(values)
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"{request.source} cloud render failed: {exc}") from exc
     return Response(content=image, media_type="image/png", headers={
         "X-Model-Effective-Valid-At": str(effective_valid_at),
         "X-Model-Effective-Run-At": str(effective_run_at),
+        "X-Model-Image-Features": base64.b64encode(json.dumps(features, ensure_ascii=False).encode()).decode(),
     })

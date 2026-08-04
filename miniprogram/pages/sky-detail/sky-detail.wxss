@@ -2,6 +2,8 @@
 .detail-header { margin: 8rpx 4rpx 28rpx; }
 .detail-city { color: #26384b; font-size: 42rpx; font-weight: 600; }
 .detail-period { margin-top: 10rpx; color: #7b8794; font-size: 24rpx; }
+.share-button { display: inline-flex; align-items: center; justify-content: center; height: 58rpx; margin: 18rpx 0 0; padding: 0 22rpx; border: 1rpx solid #d8e0e8; border-radius: 999rpx; background: #fff; color: #47799f; font-size: 22rpx; line-height: 1; }
+.share-button::after { border: 0; }
 .countdown-card { padding: 30rpx; background: linear-gradient(135deg, #fff3e2, #fde8d5); }
 .countdown-active { background: linear-gradient(135deg, #fff0dd, #f9dfcd); }
 .countdown-title { color: #7c4a2b; font-size: 26rpx; }

@@ -2,6 +2,7 @@
   <view class="detail-header">
     <view class="detail-city">{{city}}</view>
     <view class="detail-period">{{skyWindow.title}} · {{selected.type}}与火烧云</view>
+    <button class="share-button" open-type="share" aria-label="分享霞况详情">分享这次霞况</button>
   </view>
 
   <view class="countdown-card card countdown-{{countdown.state}}">

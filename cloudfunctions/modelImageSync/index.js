@@ -1,4 +1,5 @@
 const https = require('https')
+const { Buffer } = require('buffer')
 const cloud = require('wx-server-sdk')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
@@ -9,6 +10,8 @@ const SHANGHAI = { city: '上海', latitude: 31.2304, longitude: 121.4737 }
 const SOURCES = ['EC', 'GFS']
 const SCENES = ['sunrise', 'sunset']
 const SNAPSHOT_MATCH_WINDOW = 6 * HOUR
+const RENDER_REQUEST_TIMEOUT_MS = 20000
+const FUNCTION_BUDGET_MS = 50000
 
 // This project's ordinary CloudBase functions have a 60-second ceiling. The
 // timer alternates providers and renders the two scene maps serially so a
@@ -106,7 +109,7 @@ function requestImage(rendererUrl, payload) {
         'Content-Length': body.length,
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
-      timeout: 45000
+      timeout: RENDER_REQUEST_TIMEOUT_MS
     }, (response) => {
       const chunks = []
       response.on('data', (chunk) => chunks.push(chunk))
@@ -121,15 +124,31 @@ function requestImage(rendererUrl, payload) {
         resolve({
           content,
           effectiveValidAt: toMilliseconds(response.headers['x-model-effective-valid-at']) || 0,
-          effectiveRunAt: toMilliseconds(response.headers['x-model-effective-run-at']) || 0
+          effectiveRunAt: toMilliseconds(response.headers['x-model-effective-run-at']) || 0,
+          imageFeatures: decodeImageFeatures(response.headers['x-model-image-features'])
         })
       })
     })
+    const hardTimeout = setTimeout(() => {
+      request.destroy(new Error('云量图服务请求超时'))
+    }, RENDER_REQUEST_TIMEOUT_MS)
+    request.on('close', () => clearTimeout(hardTimeout))
     request.on('timeout', () => request.destroy(new Error('云量图服务请求超时')))
     request.on('error', reject)
     request.write(body)
     request.end()
   })
+}
+
+function decodeImageFeatures(header) {
+  if (!header) return null
+  try {
+    const parsed = JSON.parse(Buffer.from(String(header), 'base64').toString('utf8'))
+    return parsed && parsed.status === 'ready' ? parsed : null
+  } catch (error) {
+    console.warn('无法解析云图特征响应头', error.message)
+    return null
+  }
 }
 
 async function renderOne({ source, scene, targetAt, snapshot, dryRun }) {
@@ -144,6 +163,22 @@ async function renderOne({ source, scene, targetAt, snapshot, dryRun }) {
     validAt
   }
   if (dryRun) return { ...output, dryRun: true }
+
+  const existingTargetAt = toMilliseconds(snapshot.imageTargetAt)
+  const existingImageValidAt = toMilliseconds(snapshot.imageValidAt) || validAt
+  const imageTargetMatches = existingTargetAt
+    ? Math.abs(existingTargetAt - targetAt) <= 60 * 60 * 1000
+    : Math.abs(existingImageValidAt - targetAt) <= 6 * 60 * 60 * 1000
+  if (snapshot.imageStatus === 'ready' && snapshot.imageFileId && imageTargetMatches) {
+    return {
+      ...output,
+      imageFileId: snapshot.imageFileId,
+      effectiveRunAt: toMilliseconds(snapshot.imageRunAt) || runAt,
+      effectiveValidAt: toMilliseconds(snapshot.imageValidAt) || validAt,
+      imageFeatures: snapshot.imageFeatures || null,
+      reused: true
+    }
+  }
 
   const rendererUrl = process.env.MODEL_IMAGE_RENDERER_URL
   if (!rendererUrl) throw new Error('缺少 MODEL_IMAGE_RENDERER_URL；请先部署 model-image-renderer 云托管服务')
@@ -172,10 +207,11 @@ async function renderOne({ source, scene, targetAt, snapshot, dryRun }) {
       imageValidAt: effectiveValidAt,
       imageBounds: { west: 116.5, east: 124.5, south: 27.5, north: 35.0 },
       imageProvider: source === 'EC' ? 'ECMWF Open Data IFS' : 'NOAA GFS NOMADS',
+      imageFeatures: image.imageFeatures,
       imageError: ''
     }
   })
-  return { ...output, imageFileId: upload.fileID, effectiveRunAt, effectiveValidAt }
+  return { ...output, imageFileId: upload.fileID, effectiveRunAt, effectiveValidAt, imageFeatures: image.imageFeatures }
 }
 
 exports.main = async (event = {}) => {
@@ -184,11 +220,13 @@ exports.main = async (event = {}) => {
   const sources = requested === 'ALL' ? SOURCES : SOURCES.filter((item) => item === requested)
   if (!sources.length) throw new Error('source 仅支持 EC、GFS 或 ALL')
   const dryRun = event.dryRun === true
+  console.log('modelImageSync start', { requested, dryRun })
   const now = Date.now()
   const targets = SCENES.map((scene) => ({ scene, targetAt: nextSolarTarget(scene, now) }))
   const tasks = []
   const unavailable = []
   for (const source of sources) {
+    console.log('modelImageSync loading snapshots', source)
     const snapshots = await latestSnapshots(source)
     targets.forEach(({ scene, targetAt }) => {
       const snapshot = selectNearestSnapshot(snapshots, targetAt)
@@ -196,11 +234,22 @@ exports.main = async (event = {}) => {
       else unavailable.push({ source, scene, targetAt, reason: '未找到目标时段前后 6 小时内的上海模式快照' })
     })
   }
+  console.log('modelImageSync tasks', tasks.map(({ source, scene }) => `${source}:${scene}`))
   const rendered = []
   const failed = []
+  const deadline = Date.now() + FUNCTION_BUDGET_MS
   for (const task of tasks) {
+    if (Date.now() >= deadline) {
+      failed.push({
+        ...task,
+        message: '已接近云函数执行上限，跳过剩余云量图任务；请稍后重试'
+      })
+      continue
+    }
     try {
+      console.log('modelImageSync rendering', task.source, task.scene)
       rendered.push(await renderOne(task))
+      console.log('modelImageSync rendered', task.source, task.scene)
     } catch (error) {
       failed.push({ ...task, message: error.message })
     }

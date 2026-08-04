@@ -28,6 +28,7 @@
       <text class="city-name">{{city}}</text><text class="city-arrow">⌄</text>
     </view>
       <view class="settings-link" bindtap="goSettings" role="button" aria-label="提醒设置">设置</view>
+      <button class="share-button" open-type="share" aria-label="分享霞况预报">分享</button>
     </view>
   </view>
 

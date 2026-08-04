@@ -4,6 +4,7 @@ const { buildModelReferenceFromSnapshots } = require('./model-reference')
 const HOUR = 60 * 60 * 1000
 const REQUEST_TIMEOUT = 12000
 const MAX_TARGET_GAP = 2 * HOUR
+const MAX_IMAGE_GAP = 6 * HOUR
 const FORECAST_HOURS = 72
 
 const SOURCES = {
@@ -143,6 +144,70 @@ function snapshotAt(payload, config, latitude, longitude, targetAt) {
   }
 }
 
+function numericImageFeatures(snapshot) {
+  if (!snapshot) return null
+  const cloud = finite(snapshot.totalCloud)
+  if (cloud === null) return null
+  const upper = [snapshot.midCloud, snapshot.highCloud].map(finite).filter((value) => value !== null)
+  const upperCloud = upper.length ? upper.reduce((sum, value) => sum + value, 0) / upper.length : cloud
+  const balanced = clamp(1 - Math.abs(upperCloud - 55) / 55, 0, 1)
+  const carrier = upperCloud >= 15 && upperCloud <= 85 ? 1 : 0.35
+  return {
+    source: 'numeric-proxy',
+    status: 'proxy',
+    colorPotential: Math.round(balanced * 100),
+    cloudCarrier: Math.round(carrier * 100),
+    spatialContinuity: 65,
+    confidence: 35,
+    note: '未取得云图文件，使用 EC/GFS 数值字段生成临时色阶特征'
+  }
+}
+
+function mergeImageSnapshot(liveSnapshot, storedSnapshot) {
+  if (!liveSnapshot) return null
+  const imageFeatures = storedSnapshot && storedSnapshot.imageFeatures
+  const imageFileId = storedSnapshot && (storedSnapshot.imageFileId || storedSnapshot.imageFileID)
+  const imageUrl = storedSnapshot && storedSnapshot.imageUrl
+  if (!imageFeatures && !imageFileId && !imageUrl) {
+    return { ...liveSnapshot, imageFeatures: numericImageFeatures(liveSnapshot) }
+  }
+  const imageValidAt = toMilliseconds(storedSnapshot.imageValidAt || storedSnapshot.validAt)
+  const imageRunAt = toMilliseconds(storedSnapshot.imageRunAt || storedSnapshot.runAt)
+  return {
+    ...liveSnapshot,
+    imageFeatures: imageFeatures || numericImageFeatures(liveSnapshot),
+    imageFileId: imageFileId || '',
+    imageUrl: imageUrl || '',
+    imageValidAt,
+    imageRunAt,
+    imageStatus: imageFeatures ? 'ready' : 'proxy'
+  }
+}
+
+async function storedImageSnapshots(db, city, source) {
+  if (!db || !city) return []
+  try {
+    const result = await db.collection('modelSnapshots').where({ source, city, status: 'ready' }).orderBy('validAt', 'desc').limit(100).get()
+    return result.data || []
+  } catch (error) {
+    console.warn(`${source} 云图特征读取失败`, error.message)
+    return []
+  }
+}
+
+function nearestImageSnapshot(snapshots, targetAt) {
+  let selected = null
+  let distance = Infinity
+  snapshots.forEach((snapshot) => {
+    const validAt = toMilliseconds(snapshot.imageValidAt || snapshot.validAt)
+    const currentDistance = Math.abs(validAt - targetAt)
+    if (!validAt || currentDistance > MAX_IMAGE_GAP || currentDistance >= distance) return
+    selected = snapshot
+    distance = currentDistance
+  })
+  return selected
+}
+
 async function fetchSource(config, latitude, longitude, targets) {
   try {
     const payload = await requestJson(buildUrl(config, latitude, longitude), config.source)
@@ -153,7 +218,7 @@ async function fetchSource(config, latitude, longitude, targets) {
   }
 }
 
-async function getLiveModelReferences({ city, latitude, longitude, targets = [] }) {
+async function getLiveModelReferences({ db, city, latitude, longitude, targets = [] }) {
   const lat = finite(latitude)
   const lon = finite(longitude)
   if (lat === null || lon === null || !targets.length) return {}
@@ -162,14 +227,20 @@ async function getLiveModelReferences({ city, latitude, longitude, targets = [] 
     fetchSource(SOURCES.EC, lat, lon, targets),
     fetchSource(SOURCES.GFS, lat, lon, targets)
   ])
+  const [storedEc, storedGfs] = await Promise.all([
+    storedImageSnapshots(db, city, 'EC'),
+    storedImageSnapshots(db, city, 'GFS')
+  ])
 
   return targets.reduce((result, target, index) => {
+    const ecSnapshot = mergeImageSnapshot(ecSnapshots[index], nearestImageSnapshot(storedEc, target.targetAt))
+    const gfsSnapshot = mergeImageSnapshot(gfsSnapshots[index], nearestImageSnapshot(storedGfs, target.targetAt))
     result[target.kind] = buildModelReferenceFromSnapshots({
       city,
       targetAt: target.targetAt,
       scene: target.kind,
-      ecSnapshot: ecSnapshots[index],
-      gfsSnapshot: gfsSnapshots[index]
+      ecSnapshot,
+      gfsSnapshot
     })
     return result
   }, {})

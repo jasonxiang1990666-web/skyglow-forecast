@@ -37,6 +37,7 @@ function emptyModel(source, targetAt, reason = '') {
     validAtText: formatChinaTime(targetAt),
     imageFileId: '',
     imageUrl: '',
+    imageFeatures: null,
     reason: reason || `尚未同步到该观赏时段的 ${source} 云量图`
   }
 }
@@ -209,17 +210,21 @@ function normalizeSnapshot(snapshot, source, targetAt) {
   const imageRunAt = timestamp(snapshot.imageRunAt)
   const imageFileId = snapshot.imageFileId || snapshot.imageFileID || ''
   const imageUrl = snapshot.imageUrl || ''
+  const imageFeatures = snapshot.imageFeatures && typeof snapshot.imageFeatures === 'object'
+    ? snapshot.imageFeatures
+    : null
   const signal = getModelSignal(snapshot)
   const metrics = getSnapshotMetrics(snapshot)
   const hasImage = Boolean(imageFileId || imageUrl)
+  const hasImageFeature = Boolean(imageFeatures && Number.isFinite(Number(imageFeatures.colorPotential)))
 
   if (!hasImage && !signal) return emptyModel(source, targetAt, '该模式尚未同步云量图或数值信号')
   return {
     source,
     name: source === 'EC' ? 'EC' : 'GFS',
     available: true,
-    status: hasImage ? 'available' : 'partial',
-    statusText: hasImage ? '已同步' : '图卡待同步',
+    status: hasImage || hasImageFeature ? 'available' : 'partial',
+    statusText: hasImage ? '已同步' : hasImageFeature ? '云图色阶已同步' : '图卡待同步',
     runAt,
     validAt,
     runAtText: formatChinaTime(runAt),
@@ -230,6 +235,7 @@ function normalizeSnapshot(snapshot, source, targetAt) {
     imageValidAtText: imageValidAt ? formatChinaTime(imageValidAt) : '',
     imageFileId,
     imageUrl,
+    imageFeatures,
     cloud: signal ? signal.cloud : null,
     precipitation: signal ? signal.precipitation : null,
     cloudText: signal ? signal.cloudLabel : '未提供云量数据',
@@ -248,6 +254,7 @@ function buildModelReferenceFromSnapshots({ city, targetAt, scene, ecSnapshot, g
   const explanation = buildModelExplanation(ecSnapshot, gfsSnapshot)
   const availableCount = models.filter((item) => item.available).length
   const imageCount = models.filter((item) => item.imageFileId || item.imageUrl).length
+  const imageFeatureCount = models.filter((item) => item.imageFeatures && Number.isFinite(Number(item.imageFeatures.colorPotential))).length
 
   return {
     city,
@@ -261,6 +268,8 @@ function buildModelReferenceFromSnapshots({ city, targetAt, scene, ecSnapshot, g
     explanation,
     note: imageCount
       ? '模式云量图用于观察云系趋势；EC / GFS 原始数值已参与霞况评分与出现概率计算。'
+      : imageFeatureCount
+        ? '已读取 EC / GFS 云图色阶特征，并作为火烧云鲜艳度的辅助信号；它不是实际天空 RGB 颜色。'
       : availableCount
         ? 'EC / GFS 数值信号已同步，云量图仍在同步中；当前评分已融合原始模型特征。'
         : 'EC / GFS 模式数据正在同步中，当前仅使用本地逐小时预报。',

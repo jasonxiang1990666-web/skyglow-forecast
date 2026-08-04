@@ -109,6 +109,7 @@ exports.main = async (event) => {
   const now = event.mode === 'tomorrow' ? nextChinaDayStart() : new Date()
   const modelTargets = getModelTargets(daily, now)
   const modelReferences = await getLiveModelReferences({
+    db: cloud.database(),
     city: resolvedCity,
     latitude: hasCoordinates ? requestedLatitude : location.lat,
     longitude: hasCoordinates ? requestedLongitude : location.lon,
