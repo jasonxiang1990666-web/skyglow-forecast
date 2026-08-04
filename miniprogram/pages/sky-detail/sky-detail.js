@@ -41,7 +41,18 @@ Page({
     this.windowIndex = Number(options.window) || 0
   },
 
+  onShareAppMessage() {
+    const city = this.data.city || wx.getStorageSync('selectedCity') || '当前城市'
+    const selected = this.data.selected || {}
+    return {
+      title: `${city}${selected.type || '霞况'}预报`,
+      path: `/pages/sky-detail/sky-detail?window=${this.windowIndex || 0}&from=share`
+    }
+  },
+
   onShow() {
+    const shareTask = wx.showShareMenu({ menus: ['shareAppMessage'], withShareTicket: true })
+    if (shareTask && typeof shareTask.catch === 'function') shareTask.catch(() => {})
     this.loadDetail()
   },
 

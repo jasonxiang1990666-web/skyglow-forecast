@@ -32,7 +32,17 @@ Page({
     this.setNavigationMetrics()
   },
 
+  onShareAppMessage() {
+    const city = this.data.city || wx.getStorageSync('selectedCity') || '当前城市'
+    return {
+      title: `霞光预见 · ${city}霞况预报`,
+      path: '/pages/index/index?from=share'
+    }
+  },
+
   onShow() {
+    const shareTask = wx.showShareMenu({ menus: ['shareAppMessage'], withShareTicket: true })
+    if (shareTask && typeof shareTask.catch === 'function') shareTask.catch(() => {})
     const city = wx.getStorageSync('selectedCity') || getApp().globalData.defaultCity
     const isManual = wx.getStorageSync('selectedCitySource') === 'manual'
     const displayCity = isManual ? city : (wx.getStorageSync('selectedLocationLabel') || city)
@@ -63,6 +73,10 @@ Page({
         wx.getLocation({
           type: 'gcj02',
           success: (coordinates) => {
+            if (!coordinates || (Number(coordinates.latitude) === 0 && Number(coordinates.longitude) === 0)) {
+              fallback()
+              return
+            }
             wx.setStorageSync('selectedCoordinates', coordinates)
             wx.setStorageSync('selectedCitySource', 'gps')
             // 先用逆地理编码确定“城市 · 区县”，再请求天气，避免首页只显示区县名。
@@ -95,7 +109,8 @@ Page({
         this.setData({ forecast: normalizedForecast, city: displayLocation, loading: false })
         this.startSolarCountdown()
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('forecast load failed', error)
         this.stopSolarCountdown()
         this.setData({ loading: false })
         wx.showToast({ title: '天气数据加载失败', icon: 'none' })

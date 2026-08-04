@@ -157,6 +157,7 @@ function buildModelFeatures(modelReference, targetAt) {
     return {
       source: model.source,
       values,
+      imageFeatures: model.imageFeatures && typeof model.imageFeatures === 'object' ? model.imageFeatures : null,
       quality: Math.max(0.15, (availableFields / Object.keys(fields).length) * freshness)
     }
   })
@@ -180,6 +181,18 @@ function buildModelFeatures(modelReference, targetAt) {
     ? sources.reduce((sum, source) => sum + source.quality, 0) / sources.length
     : 0
   const fieldsAvailable = Object.values(fused).filter((value) => value !== null).length
+  const imageSources = sources.filter((source) => source.imageFeatures && Number.isFinite(Number(source.imageFeatures.colorPotential)))
+  const imageWeight = imageSources.reduce((sum, source) => sum + source.quality, 0)
+  const imageFeatures = imageWeight
+    ? ['colorPotential', 'cloudCarrier', 'spatialContinuity', 'confidence'].reduce((result, key) => {
+        const available = imageSources.filter((source) => Number.isFinite(Number(source.imageFeatures[key])))
+        const weight = available.reduce((sum, source) => sum + source.quality, 0)
+        result[key] = weight
+          ? available.reduce((sum, source) => sum + Number(source.imageFeatures[key]) * source.quality, 0) / weight
+          : null
+        return result
+      }, { source: imageSources.some((source) => source.imageFeatures.status === 'ready') ? 'cloud-map-values' : 'numeric-proxy', status: imageSources.some((source) => source.imageFeatures.status === 'ready') ? 'ready' : 'proxy' })
+    : null
   return {
     available: sources.length > 0 && fieldsAvailable > 0,
     sourceCount: sources.length,
@@ -187,7 +200,8 @@ function buildModelFeatures(modelReference, targetAt) {
     dataCompleteness: fieldsAvailable / Object.keys(fields).length,
     agreementScore,
     agreementLevel: agreementLevel || 'unavailable',
-    values: fused
+    values: fused,
+    imageFeatures
   }
 }
 
@@ -202,7 +216,7 @@ function fuseValue(localValue, modelValue, localQuality, modelQuality) {
 
 function fuseMetrics(metrics, modelReference, targetAt) {
   const model = buildModelFeatures(modelReference, targetAt)
-  if (!model.available) return { ...metrics, modelFusion: model }
+  if (!model.available) return { ...metrics, imageFeatures: null, modelFusion: model }
   const localQuality = Math.max(0.2, metrics.dataCompleteness)
   const modelQuality = Math.max(0.2, model.quality)
   const values = model.values
@@ -221,6 +235,7 @@ function fuseMetrics(metrics, modelReference, targetAt) {
     cloudLayersAvailable: Boolean(metrics.cloudLayersAvailable || values.lowCloud !== null || values.midCloud !== null || values.highCloud !== null),
     dataCompleteness: Math.max(metrics.dataCompleteness, model.dataCompleteness),
     modelAgreementScore: model.agreementScore,
+    imageFeatures: model.imageFeatures,
     modelFusion: model
   }
   return fused
@@ -349,6 +364,18 @@ function fireCloudVividness(metrics) {
   const carrier = cloudStructureScore(metrics)
   const lightPath = lightPathScore(metrics)
   const atmosphere = transparencyScore(metrics)
+  const imagePotential = metrics.imageFeatures && Number.isFinite(Number(metrics.imageFeatures.colorPotential))
+    ? clamp(Number(metrics.imageFeatures.colorPotential) / 100, 0, 1)
+    : null
+  const imageConfidence = metrics.imageFeatures && Number.isFinite(Number(metrics.imageFeatures.confidence))
+    ? clamp(Number(metrics.imageFeatures.confidence) / 100, 0, 1)
+    : 0
+  // Cloud-map colour is an auxiliary signal. Keep its influence bounded so a
+  // stale/proxy feature can never override precipitation or local weather.
+  const imageWeight = imagePotential === null ? 0 : clamp(0.08 + imageConfidence * 0.12, 0.08, 0.2)
+  const blendedCarrier = imagePotential === null
+    ? carrier
+    : carrier * (1 - imageWeight) + imagePotential * imageWeight
   const duration = clamp((metrics.windowMinutes || 60) / 60, 0.55, 1)
   const lowCloudPenalty = metrics.lowCloud === null
     ? 1
@@ -361,7 +388,7 @@ function fireCloudVividness(metrics) {
       ? 0.45
       : 1
   const raw = 2.4 * (
-    carrier * 0.35 +
+    blendedCarrier * 0.35 +
     lightPath * 0.25 +
     atmosphere * 0.25 +
     duration * 0.15
@@ -384,6 +411,8 @@ function fireCloudVividness(metrics) {
     reason,
     components: {
       cloudCarrier: Math.round(carrier * 100),
+      imageColorPotential: imagePotential === null ? null : Math.round(imagePotential * 100),
+      imageWeight: Math.round(imageWeight * 100),
       lightPath: Math.round(lightPath * 100),
       atmosphere: Math.round(atmosphere * 100),
       duration: Math.round(duration * 100),
