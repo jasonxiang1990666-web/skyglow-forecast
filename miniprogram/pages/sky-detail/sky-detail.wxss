@@ -9,9 +9,6 @@
 .countdown-title { color: #7c4a2b; font-size: 26rpx; }
 .countdown-value { margin-top: 10rpx; color: #9a4e20; font-size: 54rpx; font-weight: 600; line-height: 1.2; }
 .countdown-detail { margin-top: 12rpx; color: #7b8794; font-size: 23rpx; }
-.warning-card { margin-top: 24rpx; padding: 28rpx; border-radius: 28rpx; background: #fff1f0; color: #a53b36; }
-.warning-title { font-size: 29rpx; font-weight: 600; }
-.warning-detail { margin-top: 10rpx; font-size: 23rpx; line-height: 1.7; }
 .detail-sky-card { margin-top: 24rpx; overflow: hidden; }
 .summary-card { display: flex; justify-content: space-between; min-height: 210rpx; padding: 30rpx; background: #f8f4ec; }
 .summary-low { background: #f1f5f9; }
@@ -104,3 +101,71 @@
 .loading-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }
 .error-page { padding-top: 34vh; color: #718096; font-size: 27rpx; text-align: center; }
 .retry-button { display: inline-block; margin-top: 28rpx; padding: 16rpx 34rpx; border-radius: 999rpx; background: #eaf3f9; color: #356b94; font-size: 25rpx; }
+.feedback-card { padding: 28rpx 30rpx; background: #f3f8fc; }
+.feedback-title { color: #334155; font-size: 28rpx; font-weight: 600; }
+.feedback-hint { margin-top: 10rpx; color: #7b8794; font-size: 21rpx; line-height: 1.55; }
+.feedback-score-list { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 22rpx; }
+.feedback-score { display: inline-flex; align-items: center; justify-content: center; min-height: 54rpx; padding: 0 17rpx; border: 1rpx solid #d9e4ed; border-radius: 999rpx; background: #fff; color: #5e7183; font-size: 21rpx; }
+.feedback-score-active { border-color: #47799f; background: #47799f; color: #fff; }
+.feedback-subtitle { margin-top: 24rpx; color: #536273; font-size: 22rpx; font-weight: 600; }
+.feedback-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 12rpx; }
+.feedback-tag { padding: 9rpx 15rpx; border-radius: 10rpx; background: #e7eef4; color: #627487; font-size: 20rpx; }
+.feedback-tag-active { background: #d9ebf5; color: #356b94; }
+.feedback-textarea { box-sizing: border-box; width: 100%; min-height: 110rpx; margin-top: 18rpx; padding: 16rpx; border: 1rpx solid #d9e4ed; border-radius: 12rpx; background: #fff; color: #475569; font-size: 22rpx; }
+.feedback-footer { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; margin-top: 18rpx; }
+.feedback-message { flex: 1; color: #7b8794; font-size: 20rpx; line-height: 1.45; }
+.feedback-success { color: #4f7d63; }
+.feedback-submit { display: inline-flex; align-items: center; justify-content: center; flex: none; min-height: 58rpx; padding: 0 22rpx; border-radius: 999rpx; background: #47799f; color: #fff; font-size: 22rpx; }
+.feedback-submit-disabled { opacity: .55; }
+
+/* 与首页统一的详情页视觉：先看结果，再看观赏点和空气参考。 */
+.detail-page {
+  background: linear-gradient(180deg, #f8fbfd 0%, #f3f8fa 58%, #f7fafc 100%);
+}
+.detail-header { margin: 8rpx 4rpx 22rpx; }
+.detail-city { color: #203247; font-size: 38rpx; letter-spacing: -1rpx; }
+.detail-period { margin-top: 7rpx; color: #81919c; font-size: 22rpx; }
+.detail-header .share-button { height: 52rpx; margin-top: 14rpx; background: #edf5f9; }
+.countdown-card { padding: 24rpx 26rpx; border: 1rpx solid #f1ddc8; border-radius: 22rpx; box-shadow: 0 8rpx 22rpx rgba(142, 91, 48, .06); }
+.countdown-title { color: #8f5a36; font-size: 23rpx; }
+.countdown-value { margin-top: 6rpx; color: #a15326; font-size: 48rpx; }
+.countdown-detail { margin-top: 8rpx; color: #8b98a2; font-size: 21rpx; }
+.detail-score-card { display: flex; align-items: center; justify-content: space-between; margin-top: 14rpx; padding: 24rpx 26rpx; border: 1rpx solid #e9e4da; background: linear-gradient(135deg, #fff9f0, #f8f5ee); box-shadow: 0 8rpx 22rpx rgba(90, 86, 75, .05); }
+.detail-score-caption { color: #7f6b5c; font-size: 21rpx; }
+.detail-score-value { display: flex; align-items: baseline; margin-top: 4rpx; color: #a15326; }
+.detail-score-value text:first-child { font-size: 62rpx; font-weight: 600; letter-spacing: -2rpx; }
+.detail-score-unit { margin-left: 5rpx; font-size: 24rpx; }
+.detail-score-label { margin-top: 5rpx; color: #8f4a28; font-size: 24rpx; font-weight: 600; }
+.detail-score-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10rpx; color: #758692; font-size: 21rpx; line-height: 1.4; text-align: right; }
+.feedback-card { margin-top: 18rpx; border: 1rpx solid #d9e8ef; border-radius: 22rpx; background: #f2f8fb; box-shadow: none; }
+.feedback-title { color: #315b78; font-size: 26rpx; }
+.feedback-hint { color: #80929e; font-size: 20rpx; }
+.feedback-score { min-height: 50rpx; padding: 0 15rpx; font-size: 20rpx; }
+.featured-heading { margin-top: 30rpx; }
+.section-title { margin: 30rpx 4rpx 12rpx; color: #203247; font-size: 27rpx; }
+.featured-card, .nearby-card, .air-card { border: 1rpx solid #e0e8ed; box-shadow: 0 8rpx 22rpx rgba(52, 78, 94, .04); }
+.featured-row, .spot-row { padding: 22rpx 24rpx; }
+.featured-name, .spot-name { color: #30495b; font-size: 25rpx; }
+.featured-tags, .featured-address, .spot-address, .spot-reason { font-size: 20rpx; }
+.featured-side, .spot-side { flex-basis: 94rpx; }
+.featured-link, .spot-link, .featured-more { color: #4a7895; font-size: 21rpx; }
+.nearby-intro, .nearby-empty { padding: 24rpx; }
+.nearby-title { color: #30495b; font-size: 25rpx; }
+.nearby-description { font-size: 21rpx; }
+.nearby-button { min-height: 54rpx; margin-top: 18rpx; background: #e4f1f6; color: #356b8b; font-size: 21rpx; }
+.air-card { padding: 24rpx; }
+.air-title { font-size: 25rpx; }
+.air-description { font-size: 21rpx; }
+.air-metrics { margin-top: 18rpx; padding-top: 16rpx; }
+.air-metric { font-size: 19rpx; }
+.air-metric-value { font-size: 23rpx; }
+.air-note { margin-top: 16rpx; font-size: 19rpx; }
+
+/* 详情页数据状态与首页保持一致。 */
+.detail-status-line { display: flex; align-items: center; min-height: 38rpx; margin-top: 12rpx; padding: 0 12rpx; border: 1rpx solid #d9e8ef; border-radius: 999rpx; background: #eff8fb; color: #648492; font-size: 18rpx; }
+.detail-status-line .status-dot { width: 9rpx; height: 9rpx; margin-right: 7rpx; }
+.detail-status-time { margin-left: auto; color: #8ea2ac; }
+.detail-score-card { position: relative; overflow: hidden; }
+.detail-score-card::after { position: absolute; right: -22rpx; top: -42rpx; width: 150rpx; height: 150rpx; border: 1rpx solid rgba(192, 132, 83, .25); border-radius: 50%; box-shadow: 0 0 0 18rpx rgba(192, 132, 83, .06), 0 0 0 36rpx rgba(192, 132, 83, .04); content: ''; }
+.detail-score-card > view { position: relative; z-index: 1; }
+.detail-score-value text:first-child { text-shadow: 0 3rpx 12rpx rgba(156, 74, 29, .12); }

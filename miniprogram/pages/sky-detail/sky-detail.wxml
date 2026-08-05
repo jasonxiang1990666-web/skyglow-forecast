@@ -2,6 +2,7 @@
   <view class="detail-header">
     <view class="detail-city">{{city}}</view>
     <view class="detail-period">{{skyWindow.title}} · {{selected.type}}与火烧云</view>
+    <view class="detail-status-line"><view class="status-dot"></view><text>观赏窗口数据已同步</text><text class="detail-status-time">{{updatedAt}}</text></view>
     <button class="share-button" open-type="share" aria-label="分享霞况详情">分享这次霞况</button>
   </view>
 
@@ -11,9 +12,34 @@
     <view class="countdown-detail">{{countdown.detail}}</view>
   </view>
 
-  <view wx:if="{{warning}}" class="warning-card">
-    <view class="warning-title">安全提醒 · {{warning.title}}</view>
-    <view class="warning-detail">{{warning.detail}}</view>
+  <view class="detail-score-card card">
+    <view class="detail-score-main">
+      <view class="detail-score-caption">本次霞况</view>
+      <view class="detail-score-value"><text>{{selected.score}}</text><text class="detail-score-unit">分</text></view>
+      <view class="detail-score-label">{{selected.label}}</view>
+    </view>
+    <view class="detail-score-side">
+      <view>出现概率 {{selected.probability}}%</view>
+      <view wx:if="{{fireCloud}}">火烧云 · {{fireCloud.vividnessLabel || fireCloud.label}}</view>
+      <view wx:if="{{fireCloud && fireCloud.vividnessText}}">鲜艳度 {{fireCloud.vividnessText}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{feedback.visible}}" class="feedback-card card">
+    <view class="feedback-title">这次{{selected.type}}实际看到了什么？</view>
+    <view class="feedback-hint">只在观赏时段开放，反馈由AI自动核验，用于改进后续预报。</view>
+    <view class="feedback-score-list">
+      <view wx:for="{{feedback.scores}}" wx:key="value" class="feedback-score {{feedback.selectedScore === item.value ? 'feedback-score-active' : ''}}" bindtap="selectFeedbackScore" data-value="{{item.value}}">{{item.label}}</view>
+    </view>
+    <view class="feedback-subtitle">现场情况（可多选）</view>
+    <view class="feedback-tags">
+      <view wx:for="{{feedback.tagOptions}}" wx:key="label" class="feedback-tag {{item.selected ? 'feedback-tag-active' : ''}}" bindtap="toggleFeedbackTag" data-tag="{{item.label}}">{{item.label}}</view>
+    </view>
+    <textarea class="feedback-textarea" maxlength="120" placeholder="补充一句现场感受（可选）" value="{{feedback.note}}" bindinput="onFeedbackNoteInput"></textarea>
+    <view class="feedback-footer">
+      <view class="feedback-message {{feedback.submitted ? 'feedback-success' : ''}}">{{feedback.message}}</view>
+      <view class="feedback-submit {{feedback.submitting ? 'feedback-submit-disabled' : ''}}" bindtap="submitFeedback">{{feedback.submitting ? '正在核验…' : feedback.submitted ? '已提交' : '提交反馈'}}</view>
+    </view>
   </view>
 
   <view class="featured-heading">

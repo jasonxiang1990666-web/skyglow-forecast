@@ -37,6 +37,7 @@
    由于一次预报会并行请求两套模式，建议将 `forecast` 云函数执行超时设置为至少 20 秒（推荐 30 秒）。
 4. 在 `miniprogram/services/subscription.js` 填入微信公众平台审核通过的订阅消息模板 ID，并由后端在前一晚 20:00 推送。
 5. 若要维护精选观赏点，请在云开发数据库中新建 `viewingSpots` 集合；字段、状态与核验流程见 [docs/viewing-spots.md](docs/viewing-spots.md)。
+6. 若要启用观赏时段反馈，请新建 `skyFeedback` 集合（权限设为“仅管理员可读写”），并部署 `cloudfunctions/skyFeedback`；审核规则与字段说明见 [docs/sky-feedback.md](docs/sky-feedback.md)。原始用户反馈不会直接进入 `skyObservations`。
 
 云函数会调用和风天气的城市搜索、72小时预报、3日预报和实时预警接口；基于日出日落动态生成最近两个霞况窗口，并返回首页所需的完整展示数据。
 
