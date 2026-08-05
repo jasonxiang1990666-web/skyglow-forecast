@@ -266,11 +266,25 @@ function getFeaturedViewingSpot(id) {
   })
 }
 
+function submitSkyFeedback(payload = {}) {
+  return withTimeout(wx.cloud.callFunction({
+    name: 'skyFeedback',
+    data: {
+      action: 'submit',
+      ...payload
+    }
+  }), 10000).then((response) => {
+    if (!response.result) throw new Error('云函数未返回反馈结果')
+    return response.result
+  })
+}
+
 module.exports = {
   getNext24HourForecast,
   getTwoWeekWeatherForecast,
   getNationalCityOverview,
   getNearbyViewingSpots,
   getFeaturedViewingSpots,
-  getFeaturedViewingSpot
+  getFeaturedViewingSpot,
+  submitSkyFeedback
 }

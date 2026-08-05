@@ -30,6 +30,7 @@
   background: linear-gradient(135deg, #fff3e2, #fee8d5 56%, #e9eefb);
 }
 .sky-window-card { overflow: hidden; cursor: pointer; }
+.sky-card-hover { opacity: .92; transform: translateY(1rpx); }
 .sky-window-card .hero { margin-top: 0; border-radius: 0; box-shadow: none; }
 .atmosphere-reference { display: flex; align-items: stretch; margin-top: 14rpx; padding: 20rpx 24rpx; background: #f4f8fb; }
 .reference-item { display: flex; flex: 1; flex-direction: column; min-width: 0; }
@@ -133,3 +134,151 @@
 .warning-title { font-size: 32rpx; font-weight: 600; }
 .warning-detail { margin-top: 12rpx; font-size: 25rpx; line-height: 1.7; }
 .loading-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }
+
+/* 视觉改版：减少灰色堆叠，突出霞况结果与下一步操作。 */
+.index-page {
+  background: linear-gradient(180deg, #f8fbfd 0%, #f4f8fa 52%, #f7fafc 100%);
+}
+.custom-nav {
+  background: rgba(248, 251, 253, .94);
+  border-bottom: 1rpx solid rgba(215, 226, 234, .72);
+}
+.topbar { padding: 0 8rpx 0 0; }
+.city-name { color: #203247; font-size: 42rpx; letter-spacing: -1rpx; }
+.settings-link { margin-left: auto; padding: 12rpx 14rpx; border-radius: 999rpx; color: #476b86; background: #edf5f9; }
+.share-button { margin-left: 6rpx; padding: 10rpx 14rpx; border-radius: 999rpx; background: #edf5f9; color: #3e7294; }
+.page-content { padding-top: 14rpx; }
+.page-intro { margin: 6rpx 4rpx 20rpx; }
+.page-eyebrow { color: #526b7c; font-size: 22rpx; letter-spacing: 4rpx; }
+.page-subtitle { margin-top: 8rpx; color: #93a2ad; font-size: 21rpx; }
+.warning-card { margin-top: 18rpx; padding: 24rpx 26rpx; border: 1rpx solid #f4d1cd; border-radius: 22rpx; background: #fff5f3; box-shadow: none; }
+.warning-title { color: #aa4e47; font-size: 27rpx; line-height: 1.4; }
+.warning-detail { margin-top: 8rpx; color: #bd655c; font-size: 22rpx; line-height: 1.6; }
+.outlook-quiet { margin-top: 16rpx; padding: 22rpx 24rpx; border: 1rpx solid #dce9ef; border-radius: 22rpx; background: #eff6f9; box-shadow: none; }
+.outlook-title { color: #3d637d; font-size: 26rpx; }
+.outlook-detail { margin-top: 7rpx; color: #8296a4; font-size: 21rpx; }
+.window-heading { align-items: flex-end; margin: 28rpx 4rpx 12rpx; color: #203247; }
+.window-heading-main { display: flex; flex-direction: column; gap: 4rpx; }
+.window-heading-side { display: flex; flex-direction: column; align-items: flex-end; gap: 5rpx; }
+.window-link-hover { opacity: .7; }
+.window-view-link { color: #4a7895; font-size: 21rpx; font-weight: 500; }
+.window-kicker { color: #91a0aa; font-size: 20rpx; font-weight: 400; letter-spacing: 1rpx; }
+.window-time { padding-bottom: 2rpx; color: #7c909f; font-size: 22rpx; }
+.next-window-heading { margin-top: 30rpx; }
+.sky-window-card { border: 1rpx solid rgba(220, 229, 235, .82); box-shadow: 0 10rpx 28rpx rgba(52, 78, 94, .06); }
+.sky-window-primary { border-color: rgba(239, 205, 171, .72); }
+.hero { min-height: 218rpx; padding: 28rpx 26rpx; }
+.hero-medium { background: linear-gradient(135deg, #fff5e7, #f9ecdf 62%, #eef1f8); }
+.hero-high { background: linear-gradient(135deg, #ffe9cd, #fbded0 58%, #e9eafa); }
+.hero-low { background: linear-gradient(135deg, #eef4f7, #f0f3f6); }
+.hero-type { color: #536a79; font-size: 26rpx; }
+.hero-score { margin-top: 8rpx; color: #a15326; }
+.hero-score-label { color: #8f6d51; font-size: 21rpx; }
+.hero-score-number { font-size: 76rpx; letter-spacing: -2rpx; }
+.hero-score-unit { color: #a15326; font-size: 28rpx; }
+.hero-label { margin-top: 12rpx; color: #8f4a28; font-size: 27rpx; }
+.hero-probability { margin-top: 8rpx; color: #9b7e67; font-size: 20rpx; }
+.hero-detail { max-width: 238rpx; color: #697986; font-size: 22rpx; line-height: 1.65; }
+.direction { color: #a2542c; font-size: 22rpx; }
+.sky-row { padding: 22rpx 26rpx; }
+.sky-row-fire { background: rgba(255, 255, 255, .68); }
+.sky-name { color: #293d4f; font-size: 27rpx; }
+.sky-label { font-size: 20rpx; }
+.sky-reason { margin-top: 7rpx; color: #82919d; font-size: 21rpx; line-height: 1.45; }
+.sky-score { color: #42586a; font-size: 24rpx; }
+.sky-probability { color: #8a9aa5; font-size: 20rpx; }
+.atmosphere-reference { margin-top: 12rpx; border: 1rpx solid #e0e9ee; border-radius: 20rpx; background: #f4f8fa; box-shadow: none; }
+.reference-value { color: #3f6f59; font-size: 25rpx; }
+.reference-value-leading { color: #4e6375; font-size: 25rpx; }
+.sky-rain-impact { margin: 10rpx 8rpx 0; color: #a8673e; font-size: 21rpx; }
+.rain-section { margin-top: 22rpx; }
+.rain-priority { margin-top: 18rpx; }
+.rain-card { padding: 22rpx 24rpx 20rpx; border: 1rpx solid #d8e9f2; border-radius: 22rpx; background: #eef7fb; box-shadow: 0 8rpx 22rpx rgba(57, 112, 145, .06); }
+.rain-urgent { background: linear-gradient(135deg, #edf8ff, #f4f9fb); }
+.rain-card-title { color: #315b78; font-size: 26rpx; }
+.rain-card-link { color: #5d89a5; font-size: 21rpx; }
+.rain-main { margin-top: 12rpx; }
+.rain-main .rain-title { color: #244d6a; font-size: 29rpx; }
+.rain-main .rain-score { color: #3b769d; font-size: 34rpx; }
+.rain-detail { margin-top: 5rpx; font-size: 21rpx; }
+.rain-meta { margin-top: 10rpx; font-size: 20rpx; }
+.rain-timeline { margin-top: 17rpx; }
+.rain-node-time, .rain-node-weather { font-size: 19rpx; }
+.trend-heading { margin: 32rpx 4rpx 12rpx; }
+.trend-heading .section-title { color: #203247; font-size: 28rpx; }
+.trend-link { color: #4a7895; font-size: 21rpx; }
+.trend-list { border: 1rpx solid #e0e8ed; box-shadow: 0 8rpx 22rpx rgba(52, 78, 94, .04); }
+.trend-row { min-height: 76rpx; padding: 0 22rpx; color: #647785; font-size: 22rpx; }
+.trend-day { width: 76rpx; color: #30475a; }
+.trend-weather { width: 94rpx; }
+.trend-rain { color: #81909b; }
+.updated-at { margin-top: 18rpx; color: #a1adb5; font-size: 20rpx; }
+
+/* 浅色科技感增强：用数据状态、微光和网格纹理表达“观测站”气质。 */
+.index-page {
+  background:
+    radial-gradient(circle at 90% 7%, rgba(127, 211, 230, .13), transparent 29%),
+    radial-gradient(circle at 5% 42%, rgba(255, 185, 125, .09), transparent 26%),
+    linear-gradient(180deg, #f8fbfd 0%, #f2f7fa 58%, #f7fafc 100%);
+}
+.page-intro { position: relative; }
+.page-intro::after {
+  position: absolute;
+  top: -8rpx;
+  right: 0;
+  width: 96rpx;
+  height: 58rpx;
+  border-top: 1rpx solid rgba(91, 166, 192, .34);
+  border-right: 1rpx solid rgba(91, 166, 192, .18);
+  border-radius: 0 30rpx 0 0;
+  content: '';
+  opacity: .9;
+}
+.page-eyebrow { color: #3e6d82; font-size: 23rpx; font-weight: 600; letter-spacing: 5rpx; }
+.forecast-status-line { display: flex; align-items: center; min-height: 42rpx; margin: 4rpx 4rpx 16rpx; padding: 0 14rpx; border: 1rpx solid #d9e8ef; border-radius: 999rpx; background: rgba(239, 248, 251, .86); color: #638090; font-size: 19rpx; }
+.status-dot { width: 10rpx; height: 10rpx; margin-right: 8rpx; border-radius: 50%; background: #46b5a0; box-shadow: 0 0 0 5rpx rgba(70, 181, 160, .13); }
+.status-label { color: #43728a; font-weight: 600; }
+.status-time { margin-left: auto; color: #8aa0ac; }
+.hero { position: relative; overflow: hidden; }
+.hero::before {
+  position: absolute;
+  top: -90rpx;
+  right: -42rpx;
+  width: 230rpx;
+  height: 230rpx;
+  border: 1rpx solid rgba(255, 255, 255, .62);
+  border-radius: 50%;
+  box-shadow: 0 0 0 20rpx rgba(255, 255, 255, .14), 0 0 0 42rpx rgba(255, 255, 255, .08);
+  content: '';
+}
+.hero::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 84rpx;
+  background-image: linear-gradient(rgba(255, 255, 255, .2) 1rpx, transparent 1rpx), linear-gradient(90deg, rgba(255, 255, 255, .2) 1rpx, transparent 1rpx);
+  background-size: 28rpx 28rpx;
+  content: '';
+  opacity: .32;
+  pointer-events: none;
+}
+.hero > view { position: relative; z-index: 1; }
+.hero-topline { display: flex; align-items: center; gap: 12rpx; }
+.hero-chip { padding: 5rpx 10rpx; border: 1rpx solid rgba(157, 112, 73, .22); border-radius: 999rpx; background: rgba(255, 255, 255, .36); color: #9a7355; font-size: 18rpx; }
+.hero-score-number { text-shadow: 0 4rpx 16rpx rgba(156, 74, 29, .13); }
+.sky-window-primary { border-color: rgba(230, 177, 128, .65); box-shadow: 0 12rpx 30rpx rgba(172, 104, 57, .08), 0 0 0 1rpx rgba(255, 255, 255, .55) inset; }
+.sky-window-secondary { border-color: rgba(194, 214, 225, .88); box-shadow: 0 10rpx 26rpx rgba(66, 112, 139, .055); }
+.sky-window-secondary .sky-row { background: rgba(246, 250, 252, .82); }
+.sky-card-action { display: flex; align-items: center; justify-content: center; min-height: 54rpx; border-top: 1rpx solid rgba(220, 229, 235, .72); color: #4a7895; font-size: 21rpx; letter-spacing: .5rpx; }
+.sky-card-action text { margin-left: 5rpx; font-size: 28rpx; line-height: 1; }
+.atmosphere-reference { position: relative; overflow: hidden; }
+.atmosphere-reference::after { position: absolute; right: 18rpx; bottom: 12rpx; width: 68rpx; height: 36rpx; border-right: 1rpx solid rgba(75, 147, 174, .24); border-bottom: 1rpx solid rgba(75, 147, 174, .24); content: ''; opacity: .7; }
+.reference-label { color: #7b94a1; letter-spacing: 1rpx; }
+.reference-value { text-shadow: 0 2rpx 10rpx rgba(58, 126, 103, .1); }
+.rain-card { position: relative; overflow: hidden; }
+.rain-card::after { position: absolute; right: -18rpx; bottom: -42rpx; width: 150rpx; height: 150rpx; border: 1rpx solid rgba(89, 160, 194, .24); border-radius: 50%; box-shadow: 0 0 0 18rpx rgba(89, 160, 194, .06), 0 0 0 36rpx rgba(89, 160, 194, .04); content: ''; }
+.rain-card > view { position: relative; z-index: 1; }
+.trend-heading .section-title { display: flex; align-items: center; }
+.trend-heading .section-title::before { width: 7rpx; height: 25rpx; margin-right: 10rpx; border-radius: 4rpx; background: #55a4bd; content: ''; }
+.trend-list { background: rgba(255, 255, 255, .9); }

@@ -1,4 +1,4 @@
-const { getNext24HourForecast, getNearbyViewingSpots, getFeaturedViewingSpots } = require('../../services/weather')
+const { getNext24HourForecast, getNearbyViewingSpots, getFeaturedViewingSpots, submitSkyFeedback } = require('../../services/weather')
 
 function countdownText(minutes) {
   const safeMinutes = Math.max(0, minutes)
@@ -16,6 +16,15 @@ function adviceFor(skyWindow, selected, warning) {
   return '本次霞况不太明显，不建议专程出门观霞。'
 }
 
+const FEEDBACK_SCORES = [
+  { value: 0, label: '没看到霞' },
+  { value: 1, label: '有一点' },
+  { value: 2, label: '一般' },
+  { value: 3, label: '霞光明显' },
+  { value: 4, label: '非常明显' }
+]
+const FEEDBACK_TAGS = ['云层较厚', '光照被遮挡', '正在下雨', '视野开阔', '视野受建筑遮挡']
+
 Page({
   data: {
     city: '',
@@ -32,6 +41,17 @@ Page({
     featuredLoading: false,
     advice: '',
     countdown: null,
+    feedback: {
+      visible: false,
+      submitted: false,
+      submitting: false,
+      selectedScore: null,
+      scores: FEEDBACK_SCORES,
+      tagOptions: FEEDBACK_TAGS.map((label) => ({ label, selected: false })),
+      tags: [],
+      note: '',
+      message: ''
+    },
     loading: true,
     loadError: '',
     updatedAt: ''
@@ -97,6 +117,7 @@ Page({
           airReference: forecast.airReference || null,
           advice: adviceFor(normalizedWindow, selected, forecast.warning),
           updatedAt: forecast.updatedAt,
+          feedback: this.buildFeedbackState(normalizedWindow, selected),
           loading: false
         })
         wx.setNavigationBarTitle({ title: `${selected.type}与火烧云详情` })
@@ -110,6 +131,27 @@ Page({
       .finally(() => {
         if (fromPullDown) wx.stopPullDownRefresh()
       })
+  },
+
+  buildFeedbackState(skyWindow, selected) {
+    const startAt = Number(skyWindow.startAt)
+    const endAt = Number(skyWindow.endAt)
+    const validWindow = Number.isFinite(startAt) && Number.isFinite(endAt) && endAt > startAt
+    const debugVisible = wx.getStorageSync('feedbackDebug') === true
+    const visible = debugVisible || (validWindow && Date.now() >= startAt && Date.now() <= endAt)
+    return {
+      visible,
+      submitted: false,
+      submitting: false,
+      selectedScore: null,
+      scores: FEEDBACK_SCORES,
+      tagOptions: FEEDBACK_TAGS.map((label) => ({ label, selected: false })),
+      tags: [],
+      note: '',
+      message: debugVisible
+        ? '开发预览模式：仅用于查看反馈表单，提交仍需处于真实观赏时段。'
+        : visible ? `仅在${selected.type}观赏时段内开放，反馈将由AI自动核验。` : ''
+    }
   },
 
   retry() {
@@ -228,6 +270,7 @@ Page({
     }
 
     const now = Date.now()
+    this.updateFeedbackVisibility(now)
     let countdown
     if (now < skyWindow.startAt) {
       const minutes = Math.ceil((skyWindow.startAt - now) / (60 * 1000))
@@ -251,5 +294,81 @@ Page({
       return
     }
     this.setData({ countdown })
+  },
+
+  updateFeedbackVisibility(now = Date.now()) {
+    const skyWindow = this.data.skyWindow
+    const feedback = this.data.feedback
+    if (!skyWindow || !feedback || feedback.submitted) return
+    const startAt = Number(skyWindow.startAt)
+    const endAt = Number(skyWindow.endAt)
+    const debugVisible = wx.getStorageSync('feedbackDebug') === true
+    const visible = debugVisible || (Number.isFinite(startAt) && Number.isFinite(endAt) && now >= startAt && now <= endAt)
+    if (visible !== feedback.visible) this.setData({ 'feedback.visible': visible })
+  },
+
+  selectFeedbackScore(event) {
+    const value = Number(event.currentTarget.dataset.value)
+    if (!Number.isFinite(value)) return
+    this.setData({ 'feedback.selectedScore': value, 'feedback.message': '' })
+  },
+
+  toggleFeedbackTag(event) {
+    const tag = event.currentTarget.dataset.tag
+    if (!tag) return
+    const tags = Array.isArray(this.data.feedback.tags) ? this.data.feedback.tags.slice() : []
+    const index = tags.indexOf(tag)
+    if (index >= 0) tags.splice(index, 1)
+    else if (tags.length < 5) tags.push(tag)
+    const tagOptions = this.data.feedback.tagOptions.map((item) => ({
+      ...item,
+      selected: tags.indexOf(item.label) >= 0
+    }))
+    this.setData({ 'feedback.tags': tags, 'feedback.tagOptions': tagOptions, 'feedback.message': '' })
+  },
+
+  onFeedbackNoteInput(event) {
+    this.setData({ 'feedback.note': String(event.detail.value || '').slice(0, 120) })
+  },
+
+  submitFeedback() {
+    const feedback = this.data.feedback
+    const skyWindow = this.data.skyWindow
+    const selected = this.data.selected
+    if (!feedback || !feedback.visible || feedback.submitting || feedback.submitted || !skyWindow || !selected) return
+    if (feedback.selectedScore === null || feedback.selectedScore === undefined) {
+      this.setData({ 'feedback.message': '请先选择本次霞况的实际感受。' })
+      return
+    }
+    this.setData({ 'feedback.submitting': true, 'feedback.message': '' })
+    const submit = (location) => submitSkyFeedback({
+      city: wx.getStorageSync('selectedCity') || this.data.city,
+      type: selected.type,
+      targetAt: Number(skyWindow.startAt),
+      startAt: Number(skyWindow.startAt),
+      endAt: Number(skyWindow.endAt),
+      observedScore: Number(feedback.selectedScore),
+      tags: feedback.tags,
+      note: feedback.note,
+      latitude: location && location.latitude,
+      longitude: location && location.longitude
+    })
+    const locationTask = new Promise((resolve) => {
+      wx.getLocation({ type: 'gcj02', success: resolve, fail: () => resolve(null) })
+    })
+    locationTask.then(submit).then((result) => {
+      const message = result && result.message ? result.message : '感谢反馈，AI正在核验。'
+      this.setData({
+        'feedback.submitting': false,
+        'feedback.submitted': Boolean(result && (result.ok || result.duplicate)),
+        'feedback.message': message
+      })
+    }).catch((error) => {
+      console.error('sky feedback submit failed', error)
+      this.setData({
+        'feedback.submitting': false,
+        'feedback.message': error && error.message ? error.message : '反馈提交失败，请稍后再试。'
+      })
+    })
   }
 })

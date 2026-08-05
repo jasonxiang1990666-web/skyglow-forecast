@@ -33,6 +33,15 @@
   </view>
 
   <view class="page-content">
+    <view class="page-intro">
+      <view class="page-eyebrow">霞况预报</view>
+      <view class="page-subtitle">根据当前位置，看看今天与明天的天空</view>
+    </view>
+    <view class="forecast-status-line">
+      <view class="status-dot"></view>
+      <text class="status-label">当前位置预报</text>
+      <text class="status-time">{{forecast.updatedAt}}</text>
+    </view>
     <view wx:if="{{forecast.warning}}" class="warning-card">
       <view class="warning-title">安全提醒 · {{forecast.warning.title}}</view>
       <view class="warning-detail">{{forecast.warning.detail}}</view>
@@ -49,13 +58,13 @@
       </view>
 
       <view class="window-heading">
-        <text>{{forecast.primaryWindow.title}}</text><text class="window-time">推荐观赏时段 {{forecast.primaryWindow.time}}</text>
+        <view class="window-heading-main"><text class="window-kicker">{{forecast.primaryWindow.kind === 'sunrise' ? '晨间天空' : '傍晚天空'}}</text><text>{{forecast.primaryWindow.title}}</text></view><view class="window-heading-side" hover-class="window-link-hover" bindtap="goSkyDetail" data-window-index="0" role="button" aria-label="查看{{forecast.primaryWindow.title}}霞况详情"><text class="window-view-link">查看详情 ›</text><text class="window-time">{{forecast.primaryWindow.time}}</text></view>
       </view>
-      <view class="sky-window-card card" bindtap="goSkyDetail" data-window-index="0" role="button" aria-label="查看{{forecast.primaryWindow.title}}霞况详情">
+      <view class="sky-window-card card sky-window-primary" hover-class="sky-card-hover" bindtap="goSkyDetail" data-window-index="0" role="button" aria-label="查看{{forecast.primaryWindow.title}}霞况详情">
         <view class="hero hero-{{forecast.primaryWindow.primarySky.tier}}">
           <view>
-            <view class="hero-type">{{forecast.primaryWindow.primarySky.type}}</view>
-            <view class="hero-score"><text class="hero-score-label">霞况评分</text>{{forecast.primaryWindow.primarySky.score}}<text class="hero-score-unit">分</text></view>
+            <view class="hero-topline"><view class="hero-type">{{forecast.primaryWindow.primarySky.type}}</view><text class="hero-chip">霞况模型</text></view>
+            <view class="hero-score"><text class="hero-score-label">霞况评分</text><text class="hero-score-number">{{forecast.primaryWindow.primarySky.score}}</text><text class="hero-score-unit">分</text></view>
             <view class="hero-label">{{forecast.primaryWindow.primarySky.label}}</view>
             <view class="hero-probability">{{forecast.primaryWindow.primarySky.probabilityLabel || '模型估算出现概率'}} {{forecast.primaryWindow.primarySky.probability}}%</view>
           </view>
@@ -64,13 +73,14 @@
             <view wx:if="{{forecast.primaryWindow.primarySky.showDirection && !forecast.warning}}" class="direction">{{forecast.primaryWindow.primarySky.direction}}</view>
           </view>
         </view>
-        <view class="sky-row">
+        <view class="sky-row sky-row-fire">
           <view>
             <view class="sky-name">{{forecast.primaryWindow.fireCloud.type}} <text class="sky-label fire-vividness-{{forecast.primaryWindow.fireCloud.vividnessLevel}}">{{forecast.primaryWindow.fireCloud.vividnessLabel || forecast.primaryWindow.fireCloud.label}}</text></view>
             <view class="sky-reason">{{forecast.primaryWindow.fireCloud.time}} · {{forecast.primaryWindow.fireCloud.vividnessReason || forecast.primaryWindow.fireCloud.reason}}</view>
           </view>
           <view class="sky-score"><text wx:if="{{forecast.primaryWindow.fireCloud.vividnessLabel}}">鲜艳度 {{forecast.primaryWindow.fireCloud.vividnessText}}</text><text wx:else>评分 {{forecast.primaryWindow.fireCloud.score}}分</text><text class="sky-probability">概率 {{forecast.primaryWindow.fireCloud.probability}}%</text></view>
         </view>
+        <view class="sky-card-action">查看{{forecast.primaryWindow.title}}详情 <text>›</text></view>
       </view>
       <view wx:if="{{solarCountdown || forecast.airReference}}" class="atmosphere-reference card">
         <view wx:if="{{solarCountdown}}" class="reference-item">
@@ -87,10 +97,10 @@
       <view wx:if="{{forecast.primaryWindow.rainImpact}}" class="sky-rain-impact">{{forecast.primaryWindow.rainImpact}}</view>
 
       <view class="window-heading next-window-heading">
-        <text>{{forecast.secondaryWindow.title}}</text><text class="window-time">推荐观赏时段 {{forecast.secondaryWindow.time}}</text>
+        <view class="window-heading-main"><view class="window-kicker">另一个观赏窗口</view><text>{{forecast.secondaryWindow.title}}</text></view><view class="window-heading-side" hover-class="window-link-hover" bindtap="goSkyDetail" data-window-index="1" role="button" aria-label="查看{{forecast.secondaryWindow.title}}霞况详情"><text class="window-view-link">查看详情 ›</text><text class="window-time">{{forecast.secondaryWindow.time}}</text></view>
       </view>
-      <view class="sky-window-card card" bindtap="goSkyDetail" data-window-index="1" role="button" aria-label="查看{{forecast.secondaryWindow.title}}霞况详情">
-        <view class="sky-row">
+      <view class="sky-window-card card sky-window-secondary" hover-class="sky-card-hover" bindtap="goSkyDetail" data-window-index="1" role="button" aria-label="查看{{forecast.secondaryWindow.title}}霞况详情">
+        <view class="sky-row sky-row-fire">
           <view>
             <view class="sky-name">{{forecast.secondaryWindow.primarySky.type}} <text class="sky-label sky-{{forecast.secondaryWindow.primarySky.tier}}">{{forecast.secondaryWindow.primarySky.label}}</text></view>
             <view class="sky-reason">{{forecast.secondaryWindow.primarySky.time}} · {{forecast.secondaryWindow.primarySky.reason}}</view>
@@ -105,6 +115,7 @@
           </view>
           <view class="sky-score"><text wx:if="{{forecast.secondaryWindow.fireCloud.vividnessLabel}}">鲜艳度 {{forecast.secondaryWindow.fireCloud.vividnessText}}</text><text wx:else>评分 {{forecast.secondaryWindow.fireCloud.score}}分</text><text class="sky-probability">概率 {{forecast.secondaryWindow.fireCloud.probability}}%</text></view>
         </view>
+        <view class="sky-card-action">查看{{forecast.secondaryWindow.title}}详情 <text>›</text></view>
       </view>
       <view wx:if="{{forecast.secondaryWindow.rainImpact}}" class="sky-rain-impact">{{forecast.secondaryWindow.rainImpact}}</view>
 
