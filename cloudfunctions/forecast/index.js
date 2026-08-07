@@ -55,6 +55,13 @@ function databaseOrNull() {
   }
 }
 
+function coordinateValue(value) {
+  if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) return null
+  if (typeof value !== 'number' && typeof value !== 'string') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
 function requiredWeatherFields(hourly, window) {
   const record = (hourly || []).find((item) => {
     const timestamp = new Date(item.fxTime).getTime()
@@ -126,9 +133,9 @@ exports.main = async (event) => {
     })
   }
 
-  const requestedLatitude = Number(event.latitude)
-  const requestedLongitude = Number(event.longitude)
-  const hasCoordinates = Number.isFinite(requestedLatitude) && Number.isFinite(requestedLongitude)
+  const requestedLatitude = coordinateValue(event.latitude)
+  const requestedLongitude = coordinateValue(event.longitude)
+  const hasCoordinates = requestedLatitude !== null && requestedLongitude !== null
   const location = hasCoordinates
     ? await lookupCoordinates(requestedLatitude, requestedLongitude)
     : await lookupCity(city)
