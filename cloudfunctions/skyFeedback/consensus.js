@@ -161,6 +161,20 @@ function observationKey(forecastRecord) {
   return `${forecastRecord.forecastId}|${forecastRecord.sceneType}`
 }
 
+function isDocumentNotFound(error) {
+  const message = String(error && (error.errMsg || error.message) || error || '')
+  return /document with _id .+ does not exist/.test(message)
+}
+
+async function getOptionalDocument(reference) {
+  try {
+    return await reference.get()
+  } catch (error) {
+    if (isDocumentNotFound(error)) return { data: null }
+    throw error
+  }
+}
+
 function buildObservation({ forecastRecord, consensus, rows, reviewedAt }) {
   const promotedRows = rows.filter((row) => consensus.feedbackIds.includes(String(row._id)))
   const reviewScores = promotedRows.map((row) => finite(row.reviewScore)).filter((value) => value !== null)
@@ -321,7 +335,7 @@ async function promoteConsensusBatch({ db, eventKey, forecastRecord } = {}) {
   await db.runTransaction(async (transaction) => {
     const observationId = observationKey(forecastRecord)
     const observationRef = transaction.collection('skyObservations').doc(observationId)
-    const currentResult = await observationRef.get()
+    const currentResult = await getOptionalDocument(observationRef)
     const existing = currentResult && currentResult.data ? currentResult.data : null
     const existingIds = new Set(existing && Array.isArray(existing.sourceFeedbackIds)
       ? existing.sourceFeedbackIds.map(String)

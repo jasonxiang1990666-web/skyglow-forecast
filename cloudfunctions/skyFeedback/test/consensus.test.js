@@ -119,7 +119,11 @@ function fakeDatabase(initialRows, authoritativeForecast = forecastRecord, optio
         doc(id) {
           return {
             async get() {
-              return { data: observationState.has(id) ? { ...observationState.get(id) } : null }
+              if (options.observationGetError) throw options.observationGetError
+              if (!observationState.has(id)) {
+                throw new Error(`document.get:fail document with _id ${id} does not exist`)
+              }
+              return { data: { ...observationState.get(id) } }
             },
             async set({ data }) {
               if (options.failObservationSet) throw new Error('injected observation failure')
@@ -367,4 +371,29 @@ test('candidate discovery paginates past fifty noisy rows to later valid voters'
   assert.equal(result.promoted, true)
   assert.deepEqual(result.feedbackIds, ['valid-a', 'valid-b', 'valid-c'])
   assert.equal(db.observations.size, 1)
+})
+
+test('first-ever consensus creates an observation when missing document reads throw by default', async () => {
+  const db = fakeDatabase([row('a', 'u1'), row('b', 'u2'), row('c', 'u3')])
+
+  const result = await promoteConsensusBatch({ db, eventKey: forecastRecord.forecastId, forecastRecord })
+
+  assert.equal(result.promoted, true)
+  assert.equal(db.observations.size, 1)
+  assert.deepEqual(result.feedbackIds, ['a', 'b', 'c'])
+})
+
+test('non-not-found observation read errors still abort promotion and preserve provisional feedback', async () => {
+  const db = fakeDatabase(
+    [row('a', 'u1'), row('b', 'u2'), row('c', 'u3')],
+    forecastRecord,
+    { observationGetError: new Error('document.get:fail permission denied') }
+  )
+
+  await assert.rejects(
+    promoteConsensusBatch({ db, eventKey: forecastRecord.forecastId, forecastRecord }),
+    /permission denied/
+  )
+  assert.equal([...db.feedback.values()].every((item) => item.reviewStatus === 'provisional'), true)
+  assert.equal(db.observations.size, 0)
 })
