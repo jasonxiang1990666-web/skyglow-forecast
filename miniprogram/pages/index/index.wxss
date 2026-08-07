@@ -270,6 +270,13 @@
 .sky-window-primary { border-color: rgba(230, 177, 128, .65); box-shadow: 0 12rpx 30rpx rgba(172, 104, 57, .08), 0 0 0 1rpx rgba(255, 255, 255, .55) inset; }
 .sky-window-secondary { border-color: rgba(194, 214, 225, .88); box-shadow: 0 10rpx 26rpx rgba(66, 112, 139, .055); }
 .sky-window-secondary .sky-row { background: rgba(246, 250, 252, .82); }
+.confidence-strip { display: flex; align-items: center; gap: 10rpx; min-height: 48rpx; padding: 0 24rpx; background: #f4f7f8; color: #657986; font-size: 19rpx; }
+.confidence-strip text:first-child { font-weight: 600; }
+.confidence-strip text:last-child { margin-left: auto; color: #8c9aa4; font-size: 18rpx; }
+.confidence-high { background: #eef8f2; color: #4f7d63; }
+.confidence-medium { background: #faf6ed; color: #98713a; }
+.confidence-low { background: #faf0ef; color: #a55c55; }
+.confidence-pending { background: #f3f6f8; color: #71808b; }
 .sky-card-action { display: flex; align-items: center; justify-content: center; min-height: 54rpx; border-top: 1rpx solid rgba(220, 229, 235, .72); color: #4a7895; font-size: 21rpx; letter-spacing: .5rpx; }
 .sky-card-action text { margin-left: 5rpx; font-size: 28rpx; line-height: 1; }
 .atmosphere-reference { position: relative; overflow: hidden; }

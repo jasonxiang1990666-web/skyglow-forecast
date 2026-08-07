@@ -1,5 +1,6 @@
 const { getNext24HourForecast } = require('../../services/weather')
 const { withWarningRainFallback } = require('../../utils/rain')
+const { confidencePresentation } = require('../../utils/forecast-confidence')
 
 function durationText(minutes) {
   const safeMinutes = Math.max(0, minutes)
@@ -21,6 +22,7 @@ Page({
   data: {
     city: '杭州',
     forecast: null,
+    confidenceView: confidencePresentation(null),
     loading: true,
     solarCountdown: '',
     statusBarHeight: 20,
@@ -106,7 +108,12 @@ Page({
         const resolvedCity = normalizedForecast.city || city
         const displayLocation = normalizedForecast.locationLabel || resolvedCity
         wx.setStorageSync('selectedCity', resolvedCity)
-        this.setData({ forecast: normalizedForecast, city: displayLocation, loading: false })
+        this.setData({
+          forecast: normalizedForecast,
+          confidenceView: confidencePresentation(normalizedForecast.primaryWindow && normalizedForecast.primaryWindow.forecastConfidence),
+          city: displayLocation,
+          loading: false
+        })
         this.startSolarCountdown()
       })
       .catch((error) => {
