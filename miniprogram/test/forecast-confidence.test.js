@@ -67,3 +67,39 @@ test('uses a safe detail fallback when model data is unavailable or reasons are 
     message: '当前仅提供基础霞况预报'
   })
 })
+
+test('uses a safe detail fallback when model agreement is missing or unsupported', () => {
+  const selected = { forecastId: '101020100|sunset|2026-08-07|1786100000000|2.0' }
+  const baseConfidence = {
+    level: 'high',
+    weatherUpdatedAt: 1786062000000,
+    reasons: ['数据新鲜']
+  }
+
+  assert.deepEqual(confidenceDetails(baseConfidence, selected), {
+    available: false,
+    message: '当前仅提供基础霞况预报'
+  })
+  assert.deepEqual(confidenceDetails({ ...baseConfidence, modelAgreement: 'unknown' }, selected), {
+    available: false,
+    message: '当前仅提供基础霞况预报'
+  })
+})
+
+test('uses a safe detail fallback when normalized reasons are empty', () => {
+  const selected = { forecastId: '101020100|sunset|2026-08-07|1786100000000|2.0' }
+  const baseConfidence = {
+    level: 'high',
+    modelAgreement: 'consistent',
+    weatherUpdatedAt: 1786062000000
+  }
+
+  assert.deepEqual(confidenceDetails({ ...baseConfidence, reasons: [] }, selected), {
+    available: false,
+    message: '当前仅提供基础霞况预报'
+  })
+  assert.deepEqual(confidenceDetails({ ...baseConfidence, reasons: [null, '', 3] }, selected), {
+    available: false,
+    message: '当前仅提供基础霞况预报'
+  })
+})

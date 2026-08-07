@@ -43,7 +43,10 @@ function formatUpdatedAt(value) {
 }
 
 function confidenceDetails(confidence, selected = {}) {
-  if (!confidence || !selected.forecastId || !LABELS[confidence.level] || confidence.modelAgreement === 'unavailable' || !Array.isArray(confidence.reasons)) {
+  const reasons = confidence && Array.isArray(confidence.reasons)
+    ? confidence.reasons.filter((reason) => typeof reason === 'string' && reason.trim()).slice(0, 3)
+    : []
+  if (!confidence || !selected.forecastId || !LABELS[confidence.level] || !SUMMARIES[confidence.modelAgreement] || confidence.modelAgreement === 'unavailable' || !reasons.length) {
     return { ...DETAIL_FALLBACK }
   }
   const updatedAt = formatUpdatedAt(confidence.weatherUpdatedAt)
@@ -55,7 +58,7 @@ function confidenceDetails(confidence, selected = {}) {
     tone: confidence.level,
     updatedAt,
     modelAgreement: SUMMARIES[confidence.modelAgreement] || 'EC/GFS 模型数据待同步',
-    reasons: confidence.reasons.filter((reason) => typeof reason === 'string' && reason.trim()).slice(0, 3)
+    reasons
   }
 }
 
