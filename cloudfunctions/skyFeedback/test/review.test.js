@@ -4,6 +4,8 @@ const {
   validateFeedback,
   validateForecastBinding,
   buildLocationGrid,
+  consensusSeenLevel,
+  assessLocationGrid,
   evaluateSubmission,
   normalizeObservations
 } = require('../review')
@@ -35,6 +37,7 @@ const forecastRecord = {
   windowEnd: 1786103600000,
   score: 82,
   probability: 68,
+  locationGrid: '31.23,121.47',
   algorithmVersion: '2.0'
 }
 
@@ -157,4 +160,45 @@ test('does not invent a zero score when the authoritative forecast has no score'
   assert.equal(observation.forecastScore, null)
   assert.equal(observation.forecastProbability, null)
   assert.equal(observation.reviewScore, null)
+})
+
+test('excludes malformed new and legacy values from consensus', () => {
+  assert.equal(consensusSeenLevel({ seenLevel: 2 }), 2)
+  assert.equal(consensusSeenLevel({ seenLevel: null, observedScore: 4 }), 3)
+  assert.equal(consensusSeenLevel({ seenLevel: '', observedScore: 2 }), 1)
+  for (const row of [
+    { seenLevel: null },
+    { seenLevel: '' },
+    { seenLevel: 1.5, observedScore: 4 },
+    { seenLevel: 4 },
+    { seenLevel: '2' },
+    { observedScore: null },
+    { observedScore: '' },
+    { observedScore: 1.5 },
+    { observedScore: -1 },
+    { observedScore: 5 },
+    { observedScore: '4' }
+  ]) {
+    assert.equal(consensusSeenLevel(row), null)
+  }
+})
+
+test('downgrades a far-away coarse grid but accepts an adjacent grid', () => {
+  assert.deepEqual(assessLocationGrid('', forecastRecord.locationGrid), { score: 0.55, reason: 'location_unavailable' })
+  const adjacent = assessLocationGrid('31.24,121.48', forecastRecord.locationGrid)
+  assert.deepEqual(adjacent, { score: 1, reason: 'location_grid_matched' })
+
+  const beijing = assessLocationGrid('39.90,116.40', forecastRecord.locationGrid)
+  assert.deepEqual(beijing, { score: 0.2, reason: 'location_grid_mismatch' })
+  const reviewed = evaluateSubmission({
+    inWindow: true,
+    locationScore: beijing.score,
+    locationReason: beijing.reason,
+    frequencyScore: 1,
+    completenessScore: 1,
+    consensusDelta: null,
+    consensusCount: 0
+  })
+  assert.equal(reviewed.reviewReasons.includes('location_grid_mismatch'), true)
+  assert.equal(reviewed.reviewScore < 75, true)
 })

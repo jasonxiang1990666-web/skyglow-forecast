@@ -38,6 +38,26 @@ function buildLocationGrid(latitude, longitude) {
   return `${lat.toFixed(2)},${lon.toFixed(2)}`
 }
 
+function parseLocationGrid(locationGrid) {
+  if (typeof locationGrid !== 'string') return null
+  const parts = locationGrid.split(',')
+  if (parts.length !== 2) return null
+  const latitude = finite(parts[0])
+  const longitude = finite(parts[1])
+  if (latitude === null || longitude === null || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null
+  return [Math.round(latitude * 100), Math.round(longitude * 100)]
+}
+
+function assessLocationGrid(clientLocationGrid, authoritativeLocationGrid) {
+  const client = parseLocationGrid(clientLocationGrid)
+  const authoritative = parseLocationGrid(authoritativeLocationGrid)
+  if (!client || !authoritative) return { score: 0.55, reason: 'location_unavailable' }
+  const isAdjacent = Math.abs(client[0] - authoritative[0]) <= 1 && Math.abs(client[1] - authoritative[1]) <= 1
+  return isAdjacent
+    ? { score: 1, reason: 'location_grid_matched' }
+    : { score: 0.2, reason: 'location_grid_mismatch' }
+}
+
 function legacySeenLevel(observedScore) {
   const score = finite(observedScore)
   if (!Number.isInteger(score) || score < 0 || score > 4) throw new Error('实际霞况反馈值无效')
@@ -45,6 +65,17 @@ function legacySeenLevel(observedScore) {
   if (score <= 2) return 1
   if (score === 3) return 2
   return 3
+}
+
+function consensusSeenLevel(feedback = {}) {
+  const hasSeenLevel = feedback.seenLevel !== null && feedback.seenLevel !== undefined && feedback.seenLevel !== ''
+  if (hasSeenLevel) {
+    return typeof feedback.seenLevel === 'number' && Number.isInteger(feedback.seenLevel) && feedback.seenLevel >= 0 && feedback.seenLevel <= 3
+      ? feedback.seenLevel
+      : null
+  }
+  if (typeof feedback.observedScore !== 'number' || !Number.isInteger(feedback.observedScore) || feedback.observedScore < 0 || feedback.observedScore > 4) return null
+  return legacySeenLevel(feedback.observedScore)
 }
 
 function legacyCloudCondition(tags) {
@@ -125,6 +156,7 @@ function boundedScore(value, fallback) {
 function evaluateSubmission({
   inWindow,
   locationScore,
+  locationReason,
   frequencyScore,
   completenessScore,
   consensusDelta,
@@ -142,7 +174,7 @@ function evaluateSubmission({
   const count = Math.max(0, Math.floor(finite(consensusCount) || 0))
   const delta = finite(consensusDelta)
   const consensus = delta === null ? 0.5 : delta <= 1 ? 1 : delta <= 2 ? 0.6 : 0.2
-  reasons.push(location >= 1 ? 'location_grid_present' : 'location_unavailable')
+  reasons.push(locationReason || (location >= 1 ? 'location_grid_present' : 'location_unavailable'))
   reasons.push(frequency >= 0.75 ? 'frequency_normal' : 'frequency_anomaly')
   reasons.push(completeness >= 1 ? 'feedback_complete' : 'feedback_incomplete')
   reasons.push(count ? (delta !== null && delta <= 1 ? 'consensus_aligned' : 'consensus_differs') : 'consensus_pending')
@@ -190,6 +222,8 @@ module.exports = {
   validateFeedback,
   validateForecastBinding,
   buildLocationGrid,
+  consensusSeenLevel,
+  assessLocationGrid,
   evaluateSubmission,
   normalizeObservations
 }

@@ -1,21 +1,12 @@
 const crypto = require('crypto')
 const cloud = require('wx-server-sdk')
-const { validateFeedback, validateForecastBinding, evaluateSubmission } = require('./review')
+const { validateFeedback, validateForecastBinding, consensusSeenLevel, assessLocationGrid, evaluateSubmission } = require('./review')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
 function hashOpenId(openid) {
   return crypto.createHash('sha256').update(openid).digest('hex').slice(0, 32)
-}
-
-function legacySeenLevel(value) {
-  const score = Number(value)
-  if (!Number.isFinite(score)) return null
-  if (score <= 0) return 0
-  if (score <= 2) return 1
-  if (score === 3) return 2
-  return 3
 }
 
 async function getForecastRecord(forecastId) {
@@ -33,7 +24,7 @@ async function getConsensus(eventKey) {
     reviewStatus: 'auto_approved'
   }).limit(50).get()
   const levels = result.data
-    .map((item) => Number.isInteger(Number(item.seenLevel)) ? Number(item.seenLevel) : legacySeenLevel(item.observedScore))
+    .map(consensusSeenLevel)
     .filter((item) => item !== null)
   if (!levels.length) return { count: 0, average: null }
   return {
@@ -60,9 +51,11 @@ async function submit(event, openid) {
 
   const consensus = await getConsensus(eventKey)
   const consensusDelta = consensus.average === null ? null : Math.abs(input.seenLevel - consensus.average)
+  const locationReview = assessLocationGrid(input.locationGrid, forecastRecord.locationGrid)
   const review = evaluateSubmission({
     inWindow: true,
-    locationScore: input.locationScore,
+    locationScore: locationReview.score,
+    locationReason: locationReview.reason,
     frequencyScore: 1,
     completenessScore: input.legacyNormalized ? 0.75 : 1,
     consensusDelta,
