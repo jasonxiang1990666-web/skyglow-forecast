@@ -1,6 +1,7 @@
 const crypto = require('crypto')
 const cloud = require('wx-server-sdk')
 const { validateFeedback, validateForecastBinding, consensusSeenLevel, assessLocationGrid, evaluateSubmission } = require('./review')
+const { promoteConsensusBatch } = require('./consensus')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
@@ -92,14 +93,22 @@ async function submit(event, openid) {
     reviewedAt: serverDate
   }
   const writeResult = await db.collection('skyFeedback').add({ data })
+  let promoted = false
+  try {
+    const promotion = await promoteConsensusBatch({ db, eventKey, forecastRecord })
+    promoted = promotion.promoted && promotion.feedbackIds.includes(writeResult._id)
+  } catch (error) {
+    console.warn('feedback consensus promotion failed', error)
+  }
+  const finalStatus = promoted ? 'auto_approved' : review.reviewStatus
   return {
     ok: true,
     id: writeResult._id,
-    status: review.reviewStatus,
+    status: finalStatus,
     reviewScore: review.reviewScore,
-    message: review.reviewStatus === 'auto_approved'
+    message: finalStatus === 'auto_approved'
       ? '感谢反馈，AI核验通过。'
-      : review.reviewStatus === 'rejected'
+      : finalStatus === 'rejected'
         ? '感谢反馈，已收到并将暂不用于模型校准。'
         : '感谢反馈，样本积累中，AI会在形成共识后再用于校准。'
   }
