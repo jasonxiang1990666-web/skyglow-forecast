@@ -6,6 +6,8 @@ const { getNearbyViewingSpots } = require('./places')
 const { getFeaturedViewingSpots, getFeaturedViewingSpot } = require('./featured-spots')
 const { getLiveModelReferences } = require('./model-live')
 const { getCalibrationProfile } = require('./calibration')
+const { evaluateForecastConfidence } = require('./confidence')
+const { enrichForecastWindows, persistForecastRecords } = require('./forecast-record')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
@@ -41,6 +43,51 @@ function getModelTargets(daily, now) {
     .filter(Boolean)
     .sort((left, right) => left.targetAt - right.targetAt)
     .slice(0, 2)
+}
+
+function numberOrNull(value) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function confidenceModel(modelReference, source) {
+  const model = modelReference && Array.isArray(modelReference.models)
+    ? modelReference.models.find((item) => item.source === source)
+    : null
+  const totalCloud = numberOrNull(model && (model.cloud ?? (model.metrics && model.metrics.totalCloud)))
+  const precipitation = numberOrNull(model && (model.precipitation ?? (model.metrics && model.metrics.precipitation)))
+  return {
+    status: Number.isFinite(totalCloud) && Number.isFinite(precipitation) ? 'ready' : 'missing',
+    validAt: numberOrNull(model && model.validAt),
+    totalCloud,
+    precipitation
+  }
+}
+
+function requiredWeatherFields(hourly, window) {
+  const record = (hourly || []).find((item) => {
+    const timestamp = new Date(item.fxTime).getTime()
+    return timestamp >= window.startAt && timestamp <= window.endAt
+  }) || {}
+  return [record.temp, record.cloud, record.precip, record.humidity]
+}
+
+function confidenceByWindow({ forecast, hourly, modelReferences, weatherUpdatedAt, now }) {
+  return (forecast.skyWindows || []).reduce((result, window) => {
+    const modelReference = modelReferences[window.kind] || {}
+    const ec = confidenceModel(modelReference, 'EC')
+    const gfs = confidenceModel(modelReference, 'GFS')
+    result[window.kind] = evaluateForecastConfidence({
+      now: now.getTime(),
+      weatherUpdatedAt,
+      requiredWeatherFields: requiredWeatherFields(hourly, window),
+      ec,
+      gfs
+    })
+    result[window.kind].ecValidAt = ec.validAt
+    result[window.kind].gfsValidAt = gfs.validAt
+    return result
+  }, {})
 }
 
 exports.main = async (event) => {
@@ -101,11 +148,12 @@ exports.main = async (event) => {
     return buildTwoWeekForecastView({ city: resolvedCity, hourly, daily })
   }
 
-  const [{ hourly, daily }, alerts, airQuality] = await Promise.all([
+  const [weather, alerts, airQuality] = await Promise.all([
     getWeather(location.id),
     getAlerts(location.lat, location.lon),
     getAirQuality(location.lat, location.lon)
   ])
+  const { hourly, daily, weatherUpdatedAt } = weather
   const now = event.mode === 'tomorrow' ? nextChinaDayStart() : new Date()
   const modelTargets = getModelTargets(daily, now)
   const modelReferences = await getLiveModelReferences({
@@ -116,5 +164,19 @@ exports.main = async (event) => {
     targets: modelTargets
   })
   const calibrationProfile = await getCalibrationProfile(cloud.database(), resolvedCity)
-  return buildForecastView({ city: resolvedCity, locationLabel, hourly, daily, alerts, airQuality, now, modelReferences, calibrationProfile })
+  const view = buildForecastView({ city: resolvedCity, locationLabel, hourly, daily, alerts, airQuality, now, modelReferences, calibrationProfile })
+  let enriched = { forecast: view, records: [] }
+  try {
+    enriched = enrichForecastWindows({
+      forecast: view,
+      location: { ...location, name: hasCoordinates ? location.name : '' },
+      coordinates: hasCoordinates ? { latitude: requestedLatitude, longitude: requestedLongitude } : {},
+      confidenceByKind: confidenceByWindow({ forecast: view, hourly, modelReferences, weatherUpdatedAt, now }),
+      weatherUpdatedAt
+    })
+  } catch (error) {
+    console.warn('forecast record enrichment failed', error)
+  }
+  await persistForecastRecords(cloud.database(), enriched.records).catch((error) => console.warn('forecast record persistence failed', error))
+  return enriched.forecast
 }
