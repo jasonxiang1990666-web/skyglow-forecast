@@ -2,6 +2,8 @@ const { consensusSeenLevel } = require('./review')
 
 const MIN_DISTINCT_USERS = 3
 const MIN_PROVISIONAL_REVIEW_SCORE = 75
+const QUERY_PAGE_SIZE = 50
+const MAX_NEW_CONTRIBUTORS_PER_TRANSACTION = 45
 
 function strictLevel(value) {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 3
@@ -162,6 +164,8 @@ function observationKey(forecastRecord) {
 function buildObservation({ forecastRecord, consensus, rows, reviewedAt }) {
   const promotedRows = rows.filter((row) => consensus.feedbackIds.includes(String(row._id)))
   const reviewScores = promotedRows.map((row) => finite(row.reviewScore)).filter((value) => value !== null)
+  const seenLevels = promotedRows.map(consensusSeenLevel).filter((value) => value !== null)
+  const colorLevels = promotedRows.map((row) => strictLevel(row.colorIntensity) ?? consensusSeenLevel(row)).filter((value) => value !== null)
   return {
     forecastId: forecastRecord.forecastId,
     cityCode: String(forecastRecord.cityCode || ''),
@@ -182,11 +186,125 @@ function buildObservation({ forecastRecord, consensus, rows, reviewedAt }) {
     algorithmVersion: String(forecastRecord.algorithmVersion || ''),
     reviewStatus: 'auto_approved',
     reviewScore: reviewScores.length ? roundedAverage(reviewScores) : null,
+    reviewScoreTotal: reviewScores.reduce((sum, value) => sum + value, 0),
+    reviewScoreCount: reviewScores.length,
     consensusCount: consensus.distinctUserCount,
+    seenLevelTotal: seenLevels.reduce((sum, value) => sum + value, 0),
+    seenLevelMin: seenLevels.length ? Math.min(...seenLevels) : consensus.seenLevel,
+    seenLevelMax: seenLevels.length ? Math.max(...seenLevels) : consensus.seenLevel,
+    colorIntensityTotal: colorLevels.reduce((sum, value) => sum + value, 0),
+    colorIntensityMin: colorLevels.length ? Math.min(...colorLevels) : consensus.colorIntensity,
+    colorIntensityMax: colorLevels.length ? Math.max(...colorLevels) : consensus.colorIntensity,
     source: 'feedback-consensus',
     sourceFeedbackIds: [...consensus.feedbackIds],
     schemaVersion: 2,
     reviewedAt
+  }
+}
+
+async function readAllPages(collection, query) {
+  const rows = []
+  let offset = 0
+  while (true) {
+    const result = await collection
+      .where(query)
+      .orderBy('_id', 'asc')
+      .skip(offset)
+      .limit(QUERY_PAGE_SIZE)
+      .get()
+    const page = Array.isArray(result.data) ? result.data : []
+    rows.push(...page)
+    if (page.length < QUERY_PAGE_SIZE) return rows
+    offset += page.length
+  }
+}
+
+async function discoverCandidates(db, eventKey) {
+  const collection = db.collection('skyFeedback')
+  const provisionalQuery = { eventKey, reviewStatus: 'provisional' }
+  if (db.command && typeof db.command.gte === 'function') {
+    provisionalQuery.reviewScore = db.command.gte(MIN_PROVISIONAL_REVIEW_SCORE)
+  }
+  const [approved, provisional] = await Promise.all([
+    readAllPages(collection, { eventKey, reviewStatus: 'auto_approved' }),
+    readAllPages(collection, provisionalQuery)
+  ])
+  return [...approved, ...provisional].sort((left, right) => String(left._id).localeCompare(String(right._id)))
+}
+
+function existingLevel(existing, field, fallback) {
+  const value = finite(existing[field])
+  return value === null ? fallback : value
+}
+
+function mergeObservation({ existing, forecastRecord, newRows, reviewedAt }) {
+  const existingIds = Array.isArray(existing.sourceFeedbackIds) ? existing.sourceFeedbackIds.map(String) : []
+  const newIds = newRows.map((row) => String(row._id))
+  const sourceFeedbackIds = [...new Set([...existingIds, ...newIds])].sort()
+  const existingCount = existingIds.length
+  const newSeenLevels = newRows.map(consensusSeenLevel)
+  const newColorLevels = newRows.map((row) => strictLevel(row.colorIntensity) ?? consensusSeenLevel(row))
+  const seenMin = Math.min(
+    existingLevel(existing, 'seenLevelMin', existing.seenLevel),
+    ...newSeenLevels
+  )
+  const seenMax = Math.max(
+    existingLevel(existing, 'seenLevelMax', existing.seenLevel),
+    ...newSeenLevels
+  )
+  const colorMin = Math.min(
+    existingLevel(existing, 'colorIntensityMin', existing.colorIntensity),
+    ...newColorLevels
+  )
+  const colorMax = Math.max(
+    existingLevel(existing, 'colorIntensityMax', existing.colorIntensity),
+    ...newColorLevels
+  )
+  if (seenMax - seenMin > 1 || colorMax - colorMin > 1) return null
+
+  const seenLevelTotal = existingLevel(existing, 'seenLevelTotal', existing.seenLevel * existingCount) +
+    newSeenLevels.reduce((sum, value) => sum + value, 0)
+  const colorIntensityTotal = existingLevel(existing, 'colorIntensityTotal', existing.colorIntensity * existingCount) +
+    newColorLevels.reduce((sum, value) => sum + value, 0)
+  const consensusCount = sourceFeedbackIds.length
+  const seenLevel = Math.round(seenLevelTotal / consensusCount)
+  const colorIntensity = Math.round(colorIntensityTotal / consensusCount)
+  const observedLevel = forecastRecord.sceneType === 'fireCloud' ? colorIntensity : seenLevel
+  const newReviewScores = newRows.map((row) => finite(row.reviewScore)).filter((value) => value !== null)
+  const existingReviewScoreCount = existingLevel(
+    existing,
+    'reviewScoreCount',
+    finite(existing.reviewScore) === null ? 0 : existingCount
+  )
+  const reviewScoreCount = existingReviewScoreCount + newReviewScores.length
+  const reviewScoreTotal = existingLevel(
+    existing,
+    'reviewScoreTotal',
+    (finite(existing.reviewScore) || 0) * existingReviewScoreCount
+  ) + newReviewScores.reduce((sum, value) => sum + value, 0)
+  const consensus = {
+    formed: true,
+    status: 'auto_approved',
+    observationStatus: seenLevel > 0 ? 'observed' : 'not_observed',
+    observedLevel,
+    seenLevel,
+    colorIntensity,
+    feedbackIds: sourceFeedbackIds,
+    distinctUserCount: consensusCount
+  }
+  return {
+    ...buildObservation({ forecastRecord, consensus, rows: newRows, reviewedAt }),
+    reviewScore: reviewScoreCount ? Math.round(reviewScoreTotal / reviewScoreCount) : null,
+    reviewScoreTotal,
+    reviewScoreCount,
+    consensusCount,
+    seenLevelTotal,
+    seenLevelMin: seenMin,
+    seenLevelMax: seenMax,
+    colorIntensityTotal,
+    colorIntensityMin: colorMin,
+    colorIntensityMax: colorMax,
+    sourceFeedbackIds
   }
 }
 
@@ -195,23 +313,81 @@ async function promoteConsensusBatch({ db, eventKey, forecastRecord } = {}) {
     return { promoted: false, ...provisionalResult() }
   }
 
-  const feedbackCollection = db.collection('skyFeedback')
-  const result = await feedbackCollection.where({ eventKey }).limit(50).get()
-  const rows = authoritativeRows(Array.isArray(result.data) ? result.data : [], eventKey, forecastRecord)
+  const rows = authoritativeRows(await discoverCandidates(db, eventKey), eventKey, forecastRecord)
   const consensus = buildConsensus(rows)
   if (!consensus.formed) return { promoted: false, ...consensus }
 
-  const reviewedAt = db.serverDate()
-  await Promise.all(consensus.feedbackIds.map((id) => feedbackCollection.doc(id).update({
-    data: {
-      reviewStatus: 'auto_approved',
-      reviewedAt
-    }
-  })))
+  let outcome = { promoted: false, ...provisionalResult() }
+  await db.runTransaction(async (transaction) => {
+    const observationId = observationKey(forecastRecord)
+    const observationRef = transaction.collection('skyObservations').doc(observationId)
+    const currentResult = await observationRef.get()
+    const existing = currentResult && currentResult.data ? currentResult.data : null
+    const existingIds = new Set(existing && Array.isArray(existing.sourceFeedbackIds)
+      ? existing.sourceFeedbackIds.map(String)
+      : [])
+    const newIds = consensus.feedbackIds
+      .filter((id) => !existingIds.has(id))
+      .slice(0, MAX_NEW_CONTRIBUTORS_PER_TRANSACTION)
 
-  const observation = buildObservation({ forecastRecord, consensus, rows, reviewedAt })
-  await db.collection('skyObservations').doc(observationKey(forecastRecord)).set({ data: observation })
-  return { promoted: true, ...consensus, observation }
+    if (existing && !newIds.length) {
+      outcome = {
+        promoted: true,
+        formed: true,
+        status: 'auto_approved',
+        observationStatus: existing.observationStatus,
+        observedLevel: existing.observedLevel,
+        seenLevel: existing.seenLevel,
+        colorIntensity: existing.colorIntensity,
+        feedbackIds: [...existingIds].sort(),
+        distinctUserCount: existingIds.size,
+        observation: existing
+      }
+      return outcome
+    }
+
+    const feedbackCollection = transaction.collection('skyFeedback')
+    const transactionRows = (await Promise.all(newIds.map(async (id) => {
+      const result = await feedbackCollection.doc(id).get()
+      return result && result.data ? result.data : null
+    }))).filter(Boolean)
+    const validRows = authoritativeRows(transactionRows, eventKey, forecastRecord).filter((row) => candidate(row))
+    if (!existing && buildConsensus(validRows).feedbackIds.length < MIN_DISTINCT_USERS) return outcome
+    if (existing && !validRows.length) return outcome
+
+    const reviewedAt = db.serverDate()
+    const observation = existing
+      ? mergeObservation({ existing, forecastRecord, newRows: validRows, reviewedAt })
+      : buildObservation({
+        forecastRecord,
+        consensus: buildConsensus(validRows),
+        rows: validRows,
+        reviewedAt
+      })
+    if (!observation) return outcome
+
+    await Promise.all(validRows.map((row) => feedbackCollection.doc(row._id).update({
+      data: {
+        reviewStatus: 'auto_approved',
+        reviewedAt
+      }
+    })))
+    await observationRef.set({ data: observation })
+    outcome = {
+      promoted: true,
+      formed: true,
+      status: 'auto_approved',
+      observationStatus: observation.observationStatus,
+      observedLevel: observation.observedLevel,
+      seenLevel: observation.seenLevel,
+      colorIntensity: observation.colorIntensity,
+      feedbackIds: [...observation.sourceFeedbackIds],
+      distinctUserCount: observation.consensusCount,
+      observation
+    }
+    return outcome
+  })
+  return outcome
 }
 
 module.exports = {

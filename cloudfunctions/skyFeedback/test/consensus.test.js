@@ -38,77 +38,129 @@ function row(id, user, overrides = {}) {
   }
 }
 
-function fakeDatabase(initialRows, authoritativeForecast = forecastRecord) {
+function fakeDatabase(initialRows, authoritativeForecast = forecastRecord, options = {}) {
   const feedback = new Map(initialRows.map((item) => [item._id, { ...item }]))
-  const observations = new Map()
+  const observations = new Map(Object.entries(options.observations || {}))
   let nextFeedbackId = 1
 
   function matches(item, query) {
-    return Object.entries(query).every(([key, value]) => item[key] === value)
+    return Object.entries(query).every(([key, value]) => {
+      if (value && value.operation === 'gte') return item[key] >= value.operand
+      return item[key] === value
+    })
   }
 
-  return {
+  function replaceMap(target, source) {
+    target.clear()
+    for (const [key, value] of source) target.set(key, value)
+  }
+
+  function collection(name, feedbackState, observationState) {
+    if (name === 'forecastRecords') {
+      return {
+        doc(id) {
+          return {
+            async get() {
+              return { data: id === authoritativeForecast.forecastId ? { ...authoritativeForecast } : null }
+            }
+          }
+        }
+      }
+    }
+    if (name === 'skyFeedback') {
+      return {
+        where(query) {
+          const state = { offset: 0, maximum: Infinity, orderField: '', orderDirection: 'asc' }
+          const chain = {
+            orderBy(field, direction) {
+              state.orderField = field
+              state.orderDirection = direction
+              return chain
+            },
+            skip(offset) {
+              state.offset = offset
+              return chain
+            },
+            limit(maximum) {
+              state.maximum = maximum
+              return chain
+            },
+            async get() {
+              let data = [...feedbackState.values()].filter((item) => matches(item, query))
+              if (state.orderField) {
+                data.sort((left, right) => String(left[state.orderField]).localeCompare(String(right[state.orderField])))
+                if (state.orderDirection === 'desc') data.reverse()
+              }
+              return { data: data.slice(state.offset, state.offset + state.maximum) }
+            }
+          }
+          return chain
+        },
+        async add({ data }) {
+          const id = `submitted-${nextFeedbackId}`
+          nextFeedbackId += 1
+          feedbackState.set(id, { _id: id, ...data })
+          return { _id: id }
+        },
+        doc(id) {
+          return {
+            async get() {
+              return { data: feedbackState.has(id) ? { ...feedbackState.get(id) } : null }
+            },
+            async update({ data }) {
+              feedbackState.set(id, { ...feedbackState.get(id), ...data })
+            }
+          }
+        }
+      }
+    }
+    if (name === 'skyObservations') {
+      return {
+        doc(id) {
+          return {
+            async get() {
+              return { data: observationState.has(id) ? { ...observationState.get(id) } : null }
+            },
+            async set({ data }) {
+              if (options.failObservationSet) throw new Error('injected observation failure')
+              observationState.set(id, { ...data })
+            }
+          }
+        }
+      }
+    }
+    throw new Error(`Unexpected collection: ${name}`)
+  }
+
+  const database = {
     feedback,
     observations,
+    command: {
+      gte(operand) {
+        return { operation: 'gte', operand }
+      }
+    },
     serverDate() {
       return 'SERVER_DATE'
     },
     collection(name) {
-      if (name === 'forecastRecords') {
-        return {
-          doc(id) {
-            return {
-              async get() {
-                return { data: id === authoritativeForecast.forecastId ? { ...authoritativeForecast } : null }
-              }
-            }
-          }
+      return collection(name, feedback, observations)
+    },
+    async runTransaction(updateFunction) {
+      const transactionFeedback = new Map([...feedback].map(([id, item]) => [id, { ...item }]))
+      const transactionObservations = new Map([...observations].map(([id, item]) => [id, { ...item }]))
+      const transaction = {
+        collection(name) {
+          return collection(name, transactionFeedback, transactionObservations)
         }
       }
-      if (name === 'skyFeedback') {
-        return {
-          where(query) {
-            return {
-              limit(maximum) {
-                return {
-                  async get() {
-                    return {
-                      data: [...feedback.values()].filter((item) => matches(item, query)).slice(0, maximum)
-                    }
-                  }
-                }
-              }
-            }
-          },
-          async add({ data }) {
-            const id = `submitted-${nextFeedbackId}`
-            nextFeedbackId += 1
-            feedback.set(id, { _id: id, ...data })
-            return { _id: id }
-          },
-          doc(id) {
-            return {
-              async update({ data }) {
-                feedback.set(id, { ...feedback.get(id), ...data })
-              }
-            }
-          }
-        }
-      }
-      if (name === 'skyObservations') {
-        return {
-          doc(id) {
-            return {
-              async set({ data }) {
-                observations.set(id, { ...data })
-              }
-            }
-          }
-        }
-      }
-      throw new Error(`Unexpected collection: ${name}`)
+      const result = await updateFunction(transaction)
+      replaceMap(feedback, transactionFeedback)
+      replaceMap(observations, transactionObservations)
+      return result
     }
   }
+  return database
 }
 
 test('three high-trust provisional users can form first consensus', () => {
@@ -259,4 +311,60 @@ test('the third valid submission triggers consensus without a manual review acti
     Module._load = originalLoad
     delete require.cache[indexPath]
   }
+})
+
+test('a stale concurrent candidate snapshot never shrinks committed observation contributors', async () => {
+  const observationId = `${forecastRecord.forecastId}|${forecastRecord.sceneType}`
+  const db = fakeDatabase(
+    [row('a', 'u1'), row('b', 'u2'), row('c', 'u3')],
+    forecastRecord,
+    {
+      observations: {
+        [observationId]: {
+          forecastId: forecastRecord.forecastId,
+          sceneType: forecastRecord.sceneType,
+          sourceFeedbackIds: ['a', 'b', 'c', 'd'],
+          observedLevel: 2,
+          seenLevel: 2,
+          colorIntensity: 2,
+          observationStatus: 'observed'
+        }
+      }
+    }
+  )
+
+  await promoteConsensusBatch({ db, eventKey: forecastRecord.forecastId, forecastRecord })
+
+  assert.deepEqual(db.observations.get(observationId).sourceFeedbackIds, ['a', 'b', 'c', 'd'])
+})
+
+test('an observation write failure rolls back every feedback approval', async () => {
+  const db = fakeDatabase(
+    [row('a', 'u1'), row('b', 'u2'), row('c', 'u3')],
+    forecastRecord,
+    { failObservationSet: true }
+  )
+
+  await assert.rejects(
+    promoteConsensusBatch({ db, eventKey: forecastRecord.forecastId, forecastRecord }),
+    /injected observation failure/
+  )
+
+  assert.equal([...db.feedback.values()].every((item) => item.reviewStatus === 'provisional'), true)
+  assert.equal(db.observations.size, 0)
+})
+
+test('candidate discovery paginates past fifty noisy rows to later valid voters', async () => {
+  const noisy = Array.from({ length: 55 }, (_, index) => row(
+    `noise-${String(index).padStart(2, '0')}`,
+    `noise-user-${index}`,
+    { reviewStatus: 'auto_approved', seenLevel: null, colorIntensity: null }
+  ))
+  const db = fakeDatabase([...noisy, row('valid-a', 'u1'), row('valid-b', 'u2'), row('valid-c', 'u3')])
+
+  const result = await promoteConsensusBatch({ db, eventKey: forecastRecord.forecastId, forecastRecord })
+
+  assert.equal(result.promoted, true)
+  assert.deepEqual(result.feedbackIds, ['valid-a', 'valid-b', 'valid-c'])
+  assert.equal(db.observations.size, 1)
 })
