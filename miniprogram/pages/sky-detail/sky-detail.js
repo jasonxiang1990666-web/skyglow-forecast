@@ -17,14 +17,30 @@ function adviceFor(skyWindow, selected, warning) {
   return '本次霞况不太明显，不建议专程出门观霞。'
 }
 
-const FEEDBACK_SCORES = [
+const FEEDBACK_SEEN_OPTIONS = [
   { value: 0, label: '没看到霞' },
-  { value: 1, label: '有一点' },
-  { value: 2, label: '一般' },
-  { value: 3, label: '霞光明显' },
-  { value: 4, label: '非常明显' }
+  { value: 1, label: '较弱' },
+  { value: 2, label: '明显' },
+  { value: 3, label: '非常明显' }
 ]
-const FEEDBACK_TAGS = ['云层较厚', '光照被遮挡', '正在下雨', '视野开阔', '视野受建筑遮挡']
+const FEEDBACK_COLOR_OPTIONS = [
+  { value: 0, label: '无' },
+  { value: 1, label: '较弱' },
+  { value: 2, label: '明显' },
+  { value: 3, label: '强烈' }
+]
+const FEEDBACK_CLOUD_OPTIONS = [
+  { value: 'few', label: '少云' },
+  { value: 'thin', label: '薄云' },
+  { value: 'layered', label: '层次云' },
+  { value: 'overcast', label: '云量过多' }
+]
+const FEEDBACK_VISIBILITY_OPTIONS = [
+  { value: 'poor', label: '较差' },
+  { value: 'fair', label: '一般' },
+  { value: 'good', label: '良好' }
+]
+const FEEDBACK_TAGS = ['正在下雨', '云层较厚', '光照被遮挡', '视野开阔', '建筑遮挡']
 
 Page({
   data: {
@@ -47,8 +63,14 @@ Page({
       visible: false,
       submitted: false,
       submitting: false,
-      selectedScore: null,
-      scores: FEEDBACK_SCORES,
+      seenLevel: null,
+      colorIntensity: null,
+      cloudCondition: '',
+      visibilityLevel: '',
+      seenOptions: FEEDBACK_SEEN_OPTIONS,
+      colorOptions: FEEDBACK_COLOR_OPTIONS,
+      cloudOptions: FEEDBACK_CLOUD_OPTIONS,
+      visibilityOptions: FEEDBACK_VISIBILITY_OPTIONS,
       tagOptions: FEEDBACK_TAGS.map((label) => ({ label, selected: false })),
       tags: [],
       note: '',
@@ -146,20 +168,23 @@ Page({
     const startAt = Number(skyWindow.startAt)
     const endAt = Number(skyWindow.endAt)
     const validWindow = Number.isFinite(startAt) && Number.isFinite(endAt) && endAt > startAt
-    const debugVisible = wx.getStorageSync('feedbackDebug') === true
-    const visible = debugVisible || (validWindow && Date.now() >= startAt && Date.now() <= endAt)
+    const visible = validWindow && Date.now() >= startAt && Date.now() <= endAt
     return {
       visible,
       submitted: false,
       submitting: false,
-      selectedScore: null,
-      scores: FEEDBACK_SCORES,
+      seenLevel: null,
+      colorIntensity: null,
+      cloudCondition: '',
+      visibilityLevel: '',
+      seenOptions: FEEDBACK_SEEN_OPTIONS,
+      colorOptions: FEEDBACK_COLOR_OPTIONS,
+      cloudOptions: FEEDBACK_CLOUD_OPTIONS,
+      visibilityOptions: FEEDBACK_VISIBILITY_OPTIONS,
       tagOptions: FEEDBACK_TAGS.map((label) => ({ label, selected: false })),
       tags: [],
       note: '',
-      message: debugVisible
-        ? '开发预览模式：仅用于查看反馈表单，提交仍需处于真实观赏时段。'
-        : visible ? `仅在${selected.type}观赏时段内开放，反馈将由AI自动核验。` : ''
+      message: visible ? `仅在${selected.type}观赏时段内开放，反馈将由AI自动核验。` : ''
     }
   },
 
@@ -311,15 +336,17 @@ Page({
     if (!skyWindow || !feedback || feedback.submitted) return
     const startAt = Number(skyWindow.startAt)
     const endAt = Number(skyWindow.endAt)
-    const debugVisible = wx.getStorageSync('feedbackDebug') === true
-    const visible = debugVisible || (Number.isFinite(startAt) && Number.isFinite(endAt) && now >= startAt && now <= endAt)
+    const visible = Number.isFinite(startAt) && Number.isFinite(endAt) && now >= startAt && now <= endAt
     if (visible !== feedback.visible) this.setData({ 'feedback.visible': visible })
   },
 
-  selectFeedbackScore(event) {
-    const value = Number(event.currentTarget.dataset.value)
-    if (!Number.isFinite(value)) return
-    this.setData({ 'feedback.selectedScore': value, 'feedback.message': '' })
+  selectFeedbackOption(event) {
+    const field = event.currentTarget.dataset.field
+    if (!['seenLevel', 'colorIntensity', 'cloudCondition', 'visibilityLevel'].includes(field)) return
+    const rawValue = event.currentTarget.dataset.value
+    const value = field === 'seenLevel' || field === 'colorIntensity' ? Number(rawValue) : String(rawValue || '')
+    if ((field === 'seenLevel' || field === 'colorIntensity') && !Number.isInteger(value)) return
+    this.setData({ [`feedback.${field}`]: value, 'feedback.message': '' })
   },
 
   toggleFeedbackTag(event) {
@@ -337,7 +364,7 @@ Page({
   },
 
   onFeedbackNoteInput(event) {
-    this.setData({ 'feedback.note': String(event.detail.value || '').slice(0, 120) })
+    this.setData({ 'feedback.note': String(event.detail.value || '').slice(0, 60) })
   },
 
   submitFeedback() {
@@ -345,23 +372,26 @@ Page({
     const skyWindow = this.data.skyWindow
     const selected = this.data.selected
     if (!feedback || !feedback.visible || feedback.submitting || feedback.submitted || !skyWindow || !selected) return
-    if (feedback.selectedScore === null || feedback.selectedScore === undefined) {
-      this.setData({ 'feedback.message': '请先选择本次霞况的实际感受。' })
+    const incomplete = feedback.seenLevel === null || feedback.colorIntensity === null || !feedback.cloudCondition || !feedback.visibilityLevel
+    if (incomplete) {
+      this.setData({ 'feedback.message': '请完成四项现场情况选择。' })
+      return
+    }
+    if (feedback.seenLevel === 0 && feedback.colorIntensity !== 0) {
+      this.setData({ 'feedback.message': '没看到霞时，霞色强度请选择“无”。' })
       return
     }
     this.setData({ 'feedback.submitting': true, 'feedback.message': '' })
     const submit = (location) => submitSkyFeedback({
-      city: wx.getStorageSync('selectedCity') || this.data.city,
-      type: selected.type,
       forecastId: selected.forecastId,
       cityCode: selected.cityCode,
       sceneType: skyWindow.kind,
       windowStart: skyWindow.startAt,
       windowEnd: skyWindow.endAt,
-      targetAt: Number(skyWindow.startAt),
-      startAt: Number(skyWindow.startAt),
-      endAt: Number(skyWindow.endAt),
-      observedScore: Number(feedback.selectedScore),
+      seenLevel: Number(feedback.seenLevel),
+      colorIntensity: Number(feedback.colorIntensity),
+      cloudCondition: feedback.cloudCondition,
+      visibilityLevel: feedback.visibilityLevel,
       tags: feedback.tags,
       note: feedback.note,
       latitude: location && location.latitude,

@@ -1,59 +1,30 @@
 const crypto = require('crypto')
 const cloud = require('wx-server-sdk')
+const { validateFeedback, validateForecastBinding, evaluateSubmission } = require('./review')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
-
-const ALLOWED_TYPES = new Set(['朝霞', '晚霞'])
-const ALLOWED_TAGS = new Set(['云层较厚', '光照被遮挡', '正在下雨', '视野开阔', '视野受建筑遮挡'])
-
-function text(value, maxLength) {
-  return String(value == null ? '' : value).trim().slice(0, maxLength)
-}
-
-function number(value) {
-  const result = Number(value)
-  return Number.isFinite(result) ? result : null
-}
 
 function hashOpenId(openid) {
   return crypto.createHash('sha256').update(openid).digest('hex').slice(0, 32)
 }
 
-function normalizeTags(tags) {
-  if (!Array.isArray(tags)) return []
-  return [...new Set(tags.map((item) => text(item, 20)).filter((item) => ALLOWED_TAGS.has(item)))].slice(0, 5)
+function legacySeenLevel(value) {
+  const score = Number(value)
+  if (!Number.isFinite(score)) return null
+  if (score <= 0) return 0
+  if (score <= 2) return 1
+  if (score === 3) return 2
+  return 3
 }
 
-function validateInput(event) {
-  const city = text(event.city, 30)
-  const type = text(event.type, 10)
-  const targetAt = number(event.targetAt)
-  const startAt = number(event.startAt)
-  const endAt = number(event.endAt)
-  const observedScore = number(event.observedScore == null ? event.score : event.observedScore)
-  if (!city) throw new Error('缺少城市')
-  if (!ALLOWED_TYPES.has(type)) throw new Error('只支持朝霞或晚霞反馈')
-  if (!targetAt || !startAt || !endAt || endAt <= startAt) throw new Error('观赏时段无效')
-  if (observedScore === null || observedScore < 0 || observedScore > 4) throw new Error('请选择0到4分的观赏结果')
-  return {
-    city,
-    type,
-    targetAt: Math.round(targetAt),
-    startAt: Math.round(startAt),
-    endAt: Math.round(endAt),
-    observedScore,
-    tags: normalizeTags(event.tags),
-    note: text(event.note, 120),
-    latitude: number(event.latitude),
-    longitude: number(event.longitude)
+async function getForecastRecord(forecastId) {
+  try {
+    const result = await db.collection('forecastRecords').doc(forecastId).get()
+    return result && result.data ? result.data : null
+  } catch (error) {
+    return null
   }
-}
-
-function locationScore(input) {
-  if (input.latitude === null || input.longitude === null) return 0.55
-  if (input.latitude < -90 || input.latitude > 90 || input.longitude < -180 || input.longitude > 180) return 0
-  return 1
 }
 
 async function getConsensus(eventKey) {
@@ -61,10 +32,14 @@ async function getConsensus(eventKey) {
     eventKey,
     reviewStatus: 'auto_approved'
   }).limit(50).get()
-  const scores = result.data.map((item) => Number(item.observedScore)).filter((item) => Number.isFinite(item))
-  if (!scores.length) return { count: 0, average: null, delta: null }
-  const average = scores.reduce((sum, item) => sum + item, 0) / scores.length
-  return { count: scores.length, average, delta: null }
+  const levels = result.data
+    .map((item) => Number.isInteger(Number(item.seenLevel)) ? Number(item.seenLevel) : legacySeenLevel(item.observedScore))
+    .filter((item) => item !== null)
+  if (!levels.length) return { count: 0, average: null }
+  return {
+    count: levels.length,
+    average: levels.reduce((sum, item) => sum + item, 0) / levels.length
+  }
 }
 
 function round(value) {
@@ -72,72 +47,66 @@ function round(value) {
 }
 
 async function submit(event, openid) {
-  const input = validateInput(event)
-  const now = Date.now()
-  // 与页面保持一致：只在建议观赏时段内接受反馈。
-  if (now < input.startAt || now > input.endAt) {
-    throw new Error('当前不在本次霞况反馈时段内')
-  }
+  const input = validateFeedback(event)
+  const forecastRecord = await getForecastRecord(input.forecastId)
+  validateForecastBinding({ feedback: input, forecastRecord, now: Date.now() })
 
-  const openidHash = hashOpenId(openid)
-  const eventKey = `${input.city}|${input.type}|${input.targetAt}`
-  const duplicate = await db.collection('skyFeedback').where({ eventKey, openidHash }).limit(1).get()
+  const anonymousUserHash = hashOpenId(openid)
+  const eventKey = forecastRecord.forecastId
+  const duplicate = await db.collection('skyFeedback').where({ forecastId: eventKey, anonymousUserHash }).limit(1).get()
   if (duplicate.data.length) {
     return { ok: false, duplicate: true, status: duplicate.data[0].reviewStatus, message: '你已提交过本次霞况反馈' }
   }
 
   const consensus = await getConsensus(eventKey)
-  const delta = consensus.average === null ? null : Math.abs(input.observedScore - consensus.average)
-  consensus.delta = delta
-  const timeComponent = 1
-  const locationComponent = locationScore(input)
-  const consensusComponent = consensus.average === null ? 0.5 : (delta <= 1 ? 1 : delta <= 2 ? 0.6 : 0.2)
-  const completenessComponent = input.tags.length || input.note ? 1 : 0.75
-  const trustScore = Math.round((timeComponent * 0.35 + locationComponent * 0.25 + consensusComponent * 0.25 + completenessComponent * 0.15) * 100)
-  let reviewStatus = 'provisional'
-  if (trustScore < 45) reviewStatus = 'rejected'
-  else if (consensus.count >= 2 && delta !== null && delta <= 1 && trustScore >= 75) reviewStatus = 'auto_approved'
-
-  const reviewReasons = [
-    '提交时间在允许反馈窗口内',
-    locationComponent >= 1 ? '已提供有效定位网格' : '未提供定位，仅降低可信度',
-    consensus.count ? `同一时段已有${consensus.count}条AI通过样本` : '同一时段暂未形成多人共识',
-    input.tags.length || input.note ? '反馈包含补充信息' : '反馈缺少补充信息'
-  ]
-  const locationGrid = locationComponent >= 1
-    ? `${input.latitude.toFixed(2)},${input.longitude.toFixed(2)}`
-    : ''
+  const consensusDelta = consensus.average === null ? null : Math.abs(input.seenLevel - consensus.average)
+  const review = evaluateSubmission({
+    inWindow: true,
+    locationScore: input.locationScore,
+    frequencyScore: 1,
+    completenessScore: input.legacyNormalized ? 0.75 : 1,
+    consensusDelta,
+    consensusCount: consensus.count
+  })
+  const serverDate = db.serverDate()
   const data = {
     eventKey,
-    city: input.city,
-    type: input.type,
-    targetAt: input.targetAt,
-    startAt: input.startAt,
-    endAt: input.endAt,
-    observedScore: input.observedScore,
+    forecastId: forecastRecord.forecastId,
+    cityCode: forecastRecord.cityCode,
+    cityName: forecastRecord.cityName || '',
+    districtName: forecastRecord.districtName || '',
+    sceneType: forecastRecord.sceneType,
+    windowStart: forecastRecord.windowStart,
+    windowEnd: forecastRecord.windowEnd,
+    seenLevel: input.seenLevel,
+    colorIntensity: input.colorIntensity,
+    cloudCondition: input.cloudCondition,
+    visibilityLevel: input.visibilityLevel,
     tags: input.tags,
     note: input.note,
-    locationGrid,
+    locationGrid: input.locationGrid,
     source: 'user-feedback',
-    openidHash,
-    reviewStatus,
-    trustScore,
-    reviewReasons,
+    anonymousUserHash,
+    reviewStatus: review.reviewStatus,
+    reviewScore: review.reviewScore,
+    reviewReasons: review.reviewReasons,
+    schemaVersion: review.schemaVersion,
     consensusCount: consensus.count,
     consensusAverage: consensus.average === null ? null : round(consensus.average),
-    modelVersion: 'feedback-ai-v1',
-    submittedAt: db.serverDate(),
-    reviewedAt: db.serverDate()
+    modelVersion: 'feedback-ai-v2',
+    legacyNormalized: input.legacyNormalized,
+    submittedAt: serverDate,
+    reviewedAt: serverDate
   }
   const writeResult = await db.collection('skyFeedback').add({ data })
   return {
     ok: true,
     id: writeResult._id,
-    status: reviewStatus,
-    trustScore,
-    message: reviewStatus === 'auto_approved'
+    status: review.reviewStatus,
+    reviewScore: review.reviewScore,
+    message: review.reviewStatus === 'auto_approved'
       ? '感谢反馈，AI核验通过。'
-      : reviewStatus === 'rejected'
+      : review.reviewStatus === 'rejected'
         ? '感谢反馈，已收到并将暂不用于模型校准。'
         : '感谢反馈，样本积累中，AI会在形成共识后再用于校准。'
   }
