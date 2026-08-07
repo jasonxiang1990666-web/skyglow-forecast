@@ -1,5 +1,29 @@
-function buildForecastId({ cityCode, sceneType, observationDate, windowStart, algorithmVersion }) {
-  return [cityCode, sceneType, observationDate, windowStart, algorithmVersion].join('|')
+const SCENE_TYPES = new Set(['sunrise', 'sunset', 'fireCloud'])
+
+function nonEmpty(value) {
+  return typeof value === 'string' ? value.trim() : String(value || '').trim()
+}
+
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function hasCanonicalIdentity({ cityCode, sceneType, observationDate, windowStart, algorithmVersion } = {}) {
+  return Boolean(
+    nonEmpty(cityCode) &&
+    SCENE_TYPES.has(sceneType) &&
+    nonEmpty(observationDate) &&
+    finiteOrNull(windowStart) !== null &&
+    nonEmpty(algorithmVersion)
+  )
+}
+
+function buildForecastId(identity = {}) {
+  if (!hasCanonicalIdentity(identity)) return ''
+  const { cityCode, sceneType, observationDate, windowStart, algorithmVersion } = identity
+  return [nonEmpty(cityCode), sceneType, nonEmpty(observationDate), Number(windowStart), nonEmpty(algorithmVersion)].join('|')
 }
 
 function locationGrid(latitude, longitude) {
@@ -23,6 +47,7 @@ function forecastConfidence(confidence = {}) {
 
 function coordinateValues(coordinates = {}) {
   if (Array.isArray(coordinates)) return { latitude: coordinates[0], longitude: coordinates[1] }
+  if (!coordinates || typeof coordinates !== 'object') return { latitude: undefined, longitude: undefined }
   return {
     latitude: coordinates.latitude,
     longitude: coordinates.longitude
@@ -41,13 +66,19 @@ function enrichForecastWindows({ forecast = {}, location = {}, coordinates, conf
   const enrichedWindows = windows.map((window) => {
     const confidence = forecastConfidence(confidenceByKind[window.kind])
     const observationDate = String(window.date || '')
-    const windowStart = Number(window.startAt)
-    const windowEnd = Number(window.endAt)
+    const windowStart = finiteOrNull(window.startAt)
+    const windowEnd = finiteOrNull(window.endAt)
     const primarySky = window.primarySky || (Array.isArray(window.skies) ? window.skies[0] : {}) || {}
     const fireCloud = window.fireCloud || (Array.isArray(window.skies) ? window.skies[1] : {}) || {}
 
     const enrichScene = (sceneType, sky) => {
       const forecastId = buildForecastId({ cityCode, sceneType, observationDate, windowStart, algorithmVersion })
+      if (!forecastId) {
+        return {
+          ...sky,
+          forecastConfidence: confidence
+        }
+      }
       const record = {
         forecastId,
         cityCode,
@@ -108,10 +139,10 @@ async function persistForecastRecords(db, records) {
     const collection = db.collection('forecastRecords')
     return await Promise.all(records.map(async (record) => {
       try {
-        const existing = await collection.where({ forecastId: record.forecastId }).limit(1).get()
-        const prior = Array.isArray(existing.data) ? existing.data[0] : null
-        if (prior && prior._id) return collection.doc(prior._id).update({ data: record })
-        return collection.add({ data: record })
+        if (!record) return null
+        const canonicalId = buildForecastId(record)
+        if (!canonicalId || record.forecastId !== canonicalId) return null
+        return collection.doc(record.forecastId).set({ data: record })
       } catch (error) {
         console.warn('forecast record persistence failed', error)
         return null
@@ -123,4 +154,13 @@ async function persistForecastRecords(db, records) {
   }
 }
 
-module.exports = { buildForecastId, locationGrid, enrichForecastWindows, persistForecastRecords }
+async function persistForecastRecordsSafely(getDatabase, records) {
+  try {
+    return await persistForecastRecords(getDatabase(), records)
+  } catch (error) {
+    console.warn('forecast record persistence failed', error)
+    return []
+  }
+}
+
+module.exports = { buildForecastId, locationGrid, enrichForecastWindows, persistForecastRecords, persistForecastRecordsSafely }
