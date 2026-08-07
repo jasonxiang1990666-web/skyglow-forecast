@@ -52,8 +52,10 @@ function groupSkyWindows(forecast) {
   const windows = forecast.skyWindows || [forecast.primaryWindow, forecast.secondaryWindow].filter(Boolean)
   const skyWindows = windows.map((skyWindow) => {
     const skies = Array.isArray(skyWindow.skies) ? skyWindow.skies.map((item) => {
+      const forecastIdCityCode = typeof item.forecastId === 'string' ? item.forecastId.split('|')[0] : ''
       const normalized = {
         ...item,
+        cityCode: item.cityCode || skyWindow.cityCode || forecast.cityCode || forecastIdCityCode,
         probability: Number.isFinite(Number(item.probability)) ? Number(item.probability) : (Number(item.score) || 0)
       }
       if (normalized.tier && normalized.label) return normalized

@@ -1,4 +1,5 @@
 const { getNext24HourForecast, getNearbyViewingSpots, getFeaturedViewingSpots, submitSkyFeedback } = require('../../services/weather')
+const { confidenceDetails } = require('../../utils/forecast-confidence')
 
 function countdownText(minutes) {
   const safeMinutes = Math.max(0, minutes)
@@ -33,6 +34,7 @@ Page({
     warning: null,
     airReference: null,
     fireCloud: null,
+    confidenceDetails: confidenceDetails(null),
     nearbySpots: null,
     nearbyLoading: false,
     nearbyMessage: '',
@@ -108,11 +110,18 @@ Page({
           factors: skyWindow.factors || { favorable: [], unfavorable: [] },
           hourlyTimeline: skyWindow.hourlyTimeline || []
         }
+        const detailConfidence = confidenceDetails({
+          ...(selected.forecastConfidence || {}),
+          weatherUpdatedAt: selected.forecastConfidence && selected.forecastConfidence.weatherUpdatedAt
+            ? selected.forecastConfidence.weatherUpdatedAt
+            : forecast.updatedAt
+        }, selected)
         this.setData({
           city: forecast.locationLabel || wx.getStorageSync('selectedLocationLabel') || forecast.city || city,
           skyWindow: normalizedWindow,
           selected,
           fireCloud,
+          confidenceDetails: detailConfidence,
           warning: forecast.warning || null,
           airReference: forecast.airReference || null,
           advice: adviceFor(normalizedWindow, selected, forecast.warning),
@@ -344,6 +353,11 @@ Page({
     const submit = (location) => submitSkyFeedback({
       city: wx.getStorageSync('selectedCity') || this.data.city,
       type: selected.type,
+      forecastId: selected.forecastId,
+      cityCode: selected.cityCode,
+      sceneType: skyWindow.kind,
+      windowStart: skyWindow.startAt,
+      windowEnd: skyWindow.endAt,
       targetAt: Number(skyWindow.startAt),
       startAt: Number(skyWindow.startAt),
       endAt: Number(skyWindow.endAt),
