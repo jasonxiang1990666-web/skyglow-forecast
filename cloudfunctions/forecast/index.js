@@ -6,6 +6,9 @@ const { getNearbyViewingSpots } = require('./places')
 const { getFeaturedViewingSpots, getFeaturedViewingSpot } = require('./featured-spots')
 const { getLiveModelReferences } = require('./model-live')
 const { getCalibrationProfile } = require('./calibration')
+const { evaluateForecastConfidence } = require('./confidence')
+const { adaptModelReference } = require('./confidence-input')
+const { enrichForecastWindows, persistForecastRecordsSafely } = require('./forecast-record')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
@@ -41,6 +44,48 @@ function getModelTargets(daily, now) {
     .filter(Boolean)
     .sort((left, right) => left.targetAt - right.targetAt)
     .slice(0, 2)
+}
+
+function databaseOrNull() {
+  try {
+    return cloud.database()
+  } catch (error) {
+    console.warn('forecast database unavailable', error)
+    return null
+  }
+}
+
+function coordinateValue(value) {
+  if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) return null
+  if (typeof value !== 'number' && typeof value !== 'string') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function requiredWeatherFields(hourly, window) {
+  const record = (hourly || []).find((item) => {
+    const timestamp = new Date(item.fxTime).getTime()
+    return timestamp >= window.startAt && timestamp <= window.endAt
+  }) || {}
+  return [record.temp, record.cloud, record.precip, record.humidity]
+}
+
+function confidenceByWindow({ forecast, hourly, modelReferences, weatherUpdatedAt, now }) {
+  return (forecast.skyWindows || []).reduce((result, window) => {
+    const modelReference = modelReferences[window.kind] || {}
+    const ec = adaptModelReference(modelReference, 'EC')
+    const gfs = adaptModelReference(modelReference, 'GFS')
+    result[window.kind] = evaluateForecastConfidence({
+      now: now.getTime(),
+      weatherUpdatedAt,
+      requiredWeatherFields: requiredWeatherFields(hourly, window),
+      ec,
+      gfs
+    })
+    result[window.kind].ecValidAt = ec.validAt
+    result[window.kind].gfsValidAt = gfs.validAt
+    return result
+  }, {})
 }
 
 exports.main = async (event) => {
@@ -88,9 +133,9 @@ exports.main = async (event) => {
     })
   }
 
-  const requestedLatitude = Number(event.latitude)
-  const requestedLongitude = Number(event.longitude)
-  const hasCoordinates = Number.isFinite(requestedLatitude) && Number.isFinite(requestedLongitude)
+  const requestedLatitude = coordinateValue(event.latitude)
+  const requestedLongitude = coordinateValue(event.longitude)
+  const hasCoordinates = requestedLatitude !== null && requestedLongitude !== null
   const location = hasCoordinates
     ? await lookupCoordinates(requestedLatitude, requestedLongitude)
     : await lookupCity(city)
@@ -101,20 +146,35 @@ exports.main = async (event) => {
     return buildTwoWeekForecastView({ city: resolvedCity, hourly, daily })
   }
 
-  const [{ hourly, daily }, alerts, airQuality] = await Promise.all([
+  const [weather, alerts, airQuality] = await Promise.all([
     getWeather(location.id),
     getAlerts(location.lat, location.lon),
     getAirQuality(location.lat, location.lon)
   ])
+  const { hourly, daily, weatherUpdatedAt } = weather
   const now = event.mode === 'tomorrow' ? nextChinaDayStart() : new Date()
   const modelTargets = getModelTargets(daily, now)
   const modelReferences = await getLiveModelReferences({
-    db: cloud.database(),
+    db: databaseOrNull(),
     city: resolvedCity,
     latitude: hasCoordinates ? requestedLatitude : location.lat,
     longitude: hasCoordinates ? requestedLongitude : location.lon,
     targets: modelTargets
   })
-  const calibrationProfile = await getCalibrationProfile(cloud.database(), resolvedCity)
-  return buildForecastView({ city: resolvedCity, locationLabel, hourly, daily, alerts, airQuality, now, modelReferences, calibrationProfile })
+  const calibrationProfile = await getCalibrationProfile(databaseOrNull(), location.id)
+  const view = buildForecastView({ city: resolvedCity, locationLabel, hourly, daily, alerts, airQuality, now, modelReferences, calibrationProfile })
+  let enriched = { forecast: view, records: [] }
+  try {
+    enriched = enrichForecastWindows({
+      forecast: view,
+      location: { ...location, name: hasCoordinates ? location.name : '' },
+      coordinates: hasCoordinates ? { latitude: requestedLatitude, longitude: requestedLongitude } : {},
+      confidenceByKind: confidenceByWindow({ forecast: view, hourly, modelReferences, weatherUpdatedAt, now }),
+      weatherUpdatedAt
+    })
+  } catch (error) {
+    console.warn('forecast record enrichment failed', error)
+  }
+  await persistForecastRecordsSafely(() => cloud.database(), enriched.records)
+  return enriched.forecast
 }

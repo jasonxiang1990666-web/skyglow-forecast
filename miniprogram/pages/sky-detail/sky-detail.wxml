@@ -25,17 +25,44 @@
     </view>
   </view>
 
+  <view class="confidence-detail-card card confidence-detail-{{confidenceDetails.tone}}">
+    <view wx:if="{{confidenceDetails.available}}">
+      <view class="confidence-detail-heading">
+        <text class="confidence-detail-title">预报可信度</text>
+        <text class="confidence-detail-level">{{confidenceDetails.label}}</text>
+      </view>
+      <view class="confidence-detail-meta">数据更新：{{confidenceDetails.updatedAt}}</view>
+      <view class="confidence-detail-agreement">{{confidenceDetails.modelAgreement}}</view>
+      <view wx:for="{{confidenceDetails.reasons}}" wx:key="*this" class="confidence-detail-reason">{{item}}</view>
+    </view>
+    <view wx:else class="confidence-detail-fallback">{{confidenceDetails.message}}</view>
+    <view wx:if="{{selected.cityCode}}" class="accuracy-entry" bindtap="goCityAccuracy">查看本城市预报表现 ›</view>
+  </view>
+
   <view wx:if="{{feedback.visible}}" class="feedback-card card">
     <view class="feedback-title">这次{{selected.type}}实际看到了什么？</view>
     <view class="feedback-hint">只在观赏时段开放，反馈由AI自动核验，用于改进后续预报。</view>
-    <view class="feedback-score-list">
-      <view wx:for="{{feedback.scores}}" wx:key="value" class="feedback-score {{feedback.selectedScore === item.value ? 'feedback-score-active' : ''}}" bindtap="selectFeedbackScore" data-value="{{item.value}}">{{item.label}}</view>
+    <view class="feedback-subtitle">看到了什么</view>
+    <view class="feedback-option-list">
+      <view wx:for="{{feedback.seenOptions}}" wx:key="value" class="feedback-option {{feedback.seenLevel === item.value ? 'feedback-option-active' : ''}}" bindtap="selectFeedbackOption" data-field="seenLevel" data-value="{{item.value}}">{{item.label}}</view>
     </view>
-    <view class="feedback-subtitle">现场情况（可多选）</view>
+    <view class="feedback-subtitle">霞色强度</view>
+    <view class="feedback-option-list">
+      <view wx:for="{{feedback.colorOptions}}" wx:key="value" class="feedback-option {{feedback.colorIntensity === item.value ? 'feedback-option-active' : ''}}" bindtap="selectFeedbackOption" data-field="colorIntensity" data-value="{{item.value}}">{{item.label}}</view>
+    </view>
+    <view class="feedback-subtitle">云层情况</view>
+    <view class="feedback-option-list">
+      <view wx:for="{{feedback.cloudOptions}}" wx:key="value" class="feedback-option {{feedback.cloudCondition === item.value ? 'feedback-option-active' : ''}}" bindtap="selectFeedbackOption" data-field="cloudCondition" data-value="{{item.value}}">{{item.label}}</view>
+    </view>
+    <view class="feedback-subtitle">能见度</view>
+    <view class="feedback-option-list">
+      <view wx:for="{{feedback.visibilityOptions}}" wx:key="value" class="feedback-option {{feedback.visibilityLevel === item.value ? 'feedback-option-active' : ''}}" bindtap="selectFeedbackOption" data-field="visibilityLevel" data-value="{{item.value}}">{{item.label}}</view>
+    </view>
+    <view class="feedback-subtitle">现场标签（可多选，最多5项）</view>
     <view class="feedback-tags">
       <view wx:for="{{feedback.tagOptions}}" wx:key="label" class="feedback-tag {{item.selected ? 'feedback-tag-active' : ''}}" bindtap="toggleFeedbackTag" data-tag="{{item.label}}">{{item.label}}</view>
     </view>
-    <textarea class="feedback-textarea" maxlength="120" placeholder="补充一句现场感受（可选）" value="{{feedback.note}}" bindinput="onFeedbackNoteInput"></textarea>
+    <textarea class="feedback-textarea" maxlength="60" placeholder="补充一句现场感受（可选，最多60字）" value="{{feedback.note}}" bindinput="onFeedbackNoteInput"></textarea>
     <view class="feedback-footer">
       <view class="feedback-message {{feedback.submitted ? 'feedback-success' : ''}}">{{feedback.message}}</view>
       <view class="feedback-submit {{feedback.submitting ? 'feedback-submit-disabled' : ''}}" bindtap="submitFeedback">{{feedback.submitting ? '正在核验…' : feedback.submitted ? '已提交' : '提交反馈'}}</view>

@@ -2,6 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/sky-detail/sky-detail",
+    "pages/city-accuracy/city-accuracy",
     "pages/viewing-spots/viewing-spots",
     "pages/spot-detail/spot-detail",
     "pages/weather-week/weather-week",

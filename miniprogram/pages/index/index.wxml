@@ -80,6 +80,11 @@
           </view>
           <view class="sky-score"><text wx:if="{{forecast.primaryWindow.fireCloud.vividnessLabel}}">鲜艳度 {{forecast.primaryWindow.fireCloud.vividnessText}}</text><text wx:else>评分 {{forecast.primaryWindow.fireCloud.score}}分</text><text class="sky-probability">概率 {{forecast.primaryWindow.fireCloud.probability}}%</text></view>
         </view>
+        <view class="confidence-strip confidence-{{confidenceView.tone}}">
+          <text>{{confidenceView.label}}</text>
+          <text>{{confidenceView.summary}}</text>
+          <text>{{forecast.updatedAt}}</text>
+        </view>
         <view class="sky-card-action">查看{{forecast.primaryWindow.title}}详情 <text>›</text></view>
       </view>
       <view wx:if="{{solarCountdown || forecast.airReference}}" class="atmosphere-reference card">

@@ -1,0 +1,22 @@
+.accuracy-page { min-height: 100vh; padding: 34rpx 28rpx 56rpx; box-sizing: border-box; }
+.accuracy-header { margin: 8rpx 4rpx 28rpx; }
+.accuracy-city { color: #26384b; font-size: 42rpx; font-weight: 600; }
+.accuracy-subtitle { margin-top: 10rpx; color: #7b8794; font-size: 24rpx; }
+.accuracy-intro { padding: 28rpx 30rpx; background: #f1f7fb; }
+.intro-title { color: #294661; font-size: 28rpx; font-weight: 600; }
+.intro-detail { margin-top: 10rpx; color: #718096; font-size: 22rpx; line-height: 1.65; }
+.accuracy-error { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin-top: 22rpx; padding: 22rpx 26rpx; background: #fff8ed; color: #9a642d; font-size: 22rpx; line-height: 1.55; }
+.retry-button { flex: none; padding: 12rpx 20rpx; border-radius: 999rpx; background: #f4e6d0; color: #8f5a2f; font-size: 21rpx; }
+.accuracy-card-list { margin-top: 24rpx; }
+.accuracy-card { padding: 26rpx 28rpx; }
+.accuracy-card + .accuracy-card { margin-top: 16rpx; }
+.accuracy-card-ready { background: linear-gradient(135deg, #f1f8f4, #fbfcfb); }
+.accuracy-card-collecting { background: #fafbfd; }
+.accuracy-card-top { display: flex; align-items: center; justify-content: space-between; }
+.accuracy-card-title { color: #334155; font-size: 28rpx; font-weight: 600; }
+.accuracy-card-state { padding: 5rpx 12rpx; border-radius: 999rpx; background: #e7eef4; color: #708294; font-size: 20rpx; }
+.accuracy-card-ready .accuracy-card-state { background: #e2f0e7; color: #4f7d63; }
+.accuracy-value { margin-top: 18rpx; color: #356b94; font-size: 50rpx; font-weight: 600; line-height: 1.15; }
+.accuracy-card-collecting .accuracy-value { color: #607285; font-size: 34rpx; }
+.accuracy-detail { margin-top: 10rpx; color: #7b8794; font-size: 21rpx; line-height: 1.55; }
+.loading-page { padding-top: 36vh; color: #718096; font-size: 28rpx; text-align: center; }

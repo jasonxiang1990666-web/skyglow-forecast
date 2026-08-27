@@ -1,6 +1,6 @@
 const HOUR = 60 * 60 * 1000
 const CHINA_OFFSET = 8 * HOUR
-const { applyCalibration } = require('./calibration')
+const { applyBoundedCalibration } = require('./calibration')
 
 function number(value, fallback) {
   const parsed = Number(value)
@@ -353,7 +353,7 @@ function occurrenceProbability(scoreResult, metrics, type, calibrationProfile) {
   else if (metrics.hasPrecipitation || metrics.rainProbability >= 80) probability = Math.min(probability, 35)
   if (confidence < 0.4) probability = Math.min(probability, 40)
   else if (confidence < 0.5) probability = Math.min(probability, 50)
-  const calibrated = applyCalibration(Math.round(clamp(probability, 5, 90)), scoreResult.score, type, calibrationProfile)
+  const calibrated = applyBoundedCalibration(Math.round(clamp(probability, 5, 90)), type, calibrationProfile)
   return calibrated
 }
 
@@ -462,6 +462,7 @@ function buildItem(type, scoreResult, start, end, metrics, direction, calibratio
     probabilityStatus: probability.status,
     calibrationSampleCount: probability.sampleCount,
     calibrationSource: probability.source,
+    calibrationAdjustment: probability.adjustment,
     confidence: scoreResult.confidence.value,
     confidenceLevel: scoreResult.confidence.level,
     confidenceLabel: scoreResult.confidence.label,
@@ -854,8 +855,8 @@ function buildForecastView({ city, locationLabel = city, hourly, daily, alerts, 
   const alert = alerts[0]
   const shortRain = buildShortRainForecast(hourly, now) || buildAlertRainForecast(alert, now)
   const today = chinaDate(now)
-  const calibrationName = `${city}历史观测校准`
-  const calibrationSuffix = calibrationProfile && calibrationProfile.status === 'calibrated' ? '' : '（待校准）'
+  const calibrationName = '近30天城市准确率有界校准'
+  const calibrationSuffix = calibrationProfile && calibrationProfile.status === 'calibrated' ? '' : '（数据积累中）'
   return {
     city,
     locationLabel,
@@ -866,10 +867,19 @@ function buildForecastView({ city, locationLabel = city, hourly, daily, alerts, 
           status: calibrationProfile.status,
           sampleCount: calibrationProfile.sampleCount,
           minimumSamples: calibrationProfile.minimumSamples,
+          windowDays: calibrationProfile.windowDays,
           source: calibrationProfile.source,
-          reason: calibrationProfile.reason
+          reason: calibrationProfile.reason,
+          note: '城市准确率反映历史命中表现，不等同于本次出现概率。'
         }
-      : { status: 'pending', sampleCount: 0, minimumSamples: 30, source: 'skyObservations' },
+      : {
+          status: 'pending',
+          sampleCount: 0,
+          minimumSamples: 30,
+          windowDays: 30,
+          source: 'accuracyStats',
+          note: '城市准确率反映历史命中表现，不等同于本次出现概率。'
+        },
     updatedAt: `更新于 ${formatTime(now)}`,
     primaryWindow: windows[0],
     secondaryWindow: windows[1],
