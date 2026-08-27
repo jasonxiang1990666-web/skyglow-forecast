@@ -36,6 +36,7 @@
       <view wx:for="{{confidenceDetails.reasons}}" wx:key="*this" class="confidence-detail-reason">{{item}}</view>
     </view>
     <view wx:else class="confidence-detail-fallback">{{confidenceDetails.message}}</view>
+    <view wx:if="{{selected.cityCode}}" class="accuracy-entry" bindtap="goCityAccuracy">查看本城市预报表现 ›</view>
   </view>
 
   <view wx:if="{{feedback.visible}}" class="feedback-card card">

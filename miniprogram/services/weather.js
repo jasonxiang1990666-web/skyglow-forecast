@@ -281,6 +281,15 @@ function submitSkyFeedback(payload = {}) {
   })
 }
 
+function getCityAccuracy(cityCode) {
+  return withTimeout(wx.cloud.callFunction({
+    name: 'cityAccuracy',
+    data: { action: 'getCityAccuracy', cityCode }
+  }), 10000).then((response) => {
+    return response && response.result && typeof response.result === 'object' ? response.result : {}
+  })
+}
+
 module.exports = {
   getNext24HourForecast,
   getTwoWeekWeatherForecast,
@@ -288,5 +297,6 @@ module.exports = {
   getNearbyViewingSpots,
   getFeaturedViewingSpots,
   getFeaturedViewingSpot,
-  submitSkyFeedback
+  submitSkyFeedback,
+  getCityAccuracy
 }

@@ -1,0 +1,29 @@
+<view wx:if="{{loading}}" class="loading-page">正在查看本城市预报表现…</view>
+
+<view wx:else class="accuracy-page">
+  <view class="accuracy-header">
+    <view class="accuracy-city">{{cityName}}</view>
+    <view class="accuracy-subtitle">近 30 天预报表现</view>
+  </view>
+
+  <view class="accuracy-intro card">
+    <view class="intro-title">历史命中率，不是出现概率</view>
+    <view class="intro-detail">当同类霞况累计满 30 条有效观测后，显示近 30 天预报与实际观测的历史命中率。</view>
+  </view>
+
+  <view wx:if="{{loadError}}" class="accuracy-error card">
+    <text>{{loadError}}</text>
+    <view class="retry-button" bindtap="retry">重新加载</view>
+  </view>
+
+  <view class="accuracy-card-list">
+    <view wx:for="{{cards}}" wx:key="key" class="accuracy-card card accuracy-card-{{item.status}}">
+      <view class="accuracy-card-top">
+        <text class="accuracy-card-title">{{item.title}}</text>
+        <text class="accuracy-card-state">{{item.status === 'ready' ? '统计已就绪' : '数据积累中'}}</text>
+      </view>
+      <view class="accuracy-value">{{item.value}}</view>
+      <view class="accuracy-detail">{{item.detail}}</view>
+    </view>
+  </view>
+</view>

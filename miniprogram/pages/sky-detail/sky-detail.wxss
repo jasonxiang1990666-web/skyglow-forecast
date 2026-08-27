@@ -147,6 +147,7 @@
 .confidence-detail-medium { background: #fbf7ef; color: #96723e; }
 .confidence-detail-low { background: #fbf1f0; color: #a65d55; }
 .confidence-detail-fallback { margin-top: 0; }
+.accuracy-entry { margin-top: 18rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(105, 130, 145, .18); color: #47799f; font-size: 22rpx; }
 .feedback-card { margin-top: 18rpx; border: 1rpx solid #d9e8ef; border-radius: 22rpx; background: #f2f8fb; box-shadow: none; }
 .feedback-title { color: #315b78; font-size: 26rpx; }
 .feedback-hint { color: #80929e; font-size: 20rpx; }

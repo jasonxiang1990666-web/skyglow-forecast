@@ -225,6 +225,14 @@ Page({
     wx.navigateTo({ url: `/pages/viewing-spots/viewing-spots?${query}` })
   },
 
+  goCityAccuracy() {
+    const selected = this.data.selected
+    const cityCode = selected && selected.cityCode
+    const cityName = this.data.city
+    if (!cityCode) return
+    wx.navigateTo({ url: `/pages/city-accuracy/city-accuracy?cityCode=${encodeURIComponent(cityCode)}&cityName=${encodeURIComponent(cityName)}` })
+  },
+
   goFeaturedSpot(event) {
     const id = event.currentTarget.dataset.id
     const skyWindow = this.data.skyWindow
