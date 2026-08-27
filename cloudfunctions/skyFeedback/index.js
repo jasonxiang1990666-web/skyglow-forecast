@@ -50,7 +50,11 @@ async function getRecentSubmissions(anonymousUserHash) {
       .orderBy('submittedAt', 'desc')
       .limit(20)
       .get()
-    return { rows: Array.isArray(result.data) ? result.data : [], lookupAvailable: true }
+    if (!result || !Array.isArray(result.data)) {
+      console.warn('feedback frequency lookup returned invalid data')
+      return { rows: [], lookupAvailable: false }
+    }
+    return { rows: result.data, lookupAvailable: true }
   } catch (error) {
     console.warn('feedback frequency lookup failed', error)
     return { rows: [], lookupAvailable: false }

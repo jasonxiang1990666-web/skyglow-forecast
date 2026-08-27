@@ -14,7 +14,7 @@ const forecastRecord = {
   locationGrid: '31.23,121.47'
 }
 
-function loadFeedbackMainWithUnavailableFrequencyLookup() {
+function loadFeedbackMainWithFrequencyLookup(frequencyLookup) {
   const written = []
   const fakeCloud = {
     DYNAMIC_CURRENT_ENV: 'test',
@@ -31,7 +31,7 @@ function loadFeedbackMainWithUnavailableFrequencyLookup() {
           where(query) {
             if (query.anonymousUserHash && !query.forecastId) {
               return {
-                orderBy: () => ({ limit: () => ({ get: async () => { throw new Error('missing frequency index') } }) }),
+                orderBy: () => ({ limit: () => ({ get: frequencyLookup }) }),
                 limit: () => ({ get: async () => [] })
               }
             }
@@ -69,7 +69,7 @@ function loadFeedbackMainWithUnavailableFrequencyLookup() {
 }
 
 test('submissions are conservatively downgraded when the cross-city frequency query fails', async () => {
-  const harness = loadFeedbackMainWithUnavailableFrequencyLookup()
+  const harness = loadFeedbackMainWithFrequencyLookup(async () => { throw new Error('missing frequency index') })
   const originalNow = Date.now
   const originalWarn = console.warn
   Date.now = () => forecastRecord.windowStart + 1000
@@ -98,5 +98,43 @@ test('submissions are conservatively downgraded when the cross-city frequency qu
     Date.now = originalNow
     console.warn = originalWarn
     harness.restore()
+  }
+})
+
+test('submissions are conservatively downgraded when the cross-city frequency query response is malformed', async () => {
+  const originalNow = Date.now
+  const originalWarn = console.warn
+  Date.now = () => forecastRecord.windowStart + 1000
+  console.warn = () => {}
+  try {
+    for (const malformedResponse of [{}, { data: null }]) {
+      const harness = loadFeedbackMainWithFrequencyLookup(async () => malformedResponse)
+      try {
+        await harness.main({
+          forecastId: forecastRecord.forecastId,
+          cityCode: forecastRecord.cityCode,
+          sceneType: forecastRecord.sceneType,
+          windowStart: forecastRecord.windowStart,
+          windowEnd: forecastRecord.windowEnd,
+          seenLevel: 2,
+          colorIntensity: 2,
+          cloudCondition: 'layered',
+          visibilityLevel: 'good',
+          tags: [],
+          note: '',
+          latitude: 31.2304,
+          longitude: 121.4737
+        })
+
+        assert.equal(harness.written.length, 1)
+        assert.equal(harness.written[0].reviewScore, 76)
+        assert.equal(harness.written[0].reviewReasons.includes('frequency_lookup_unavailable'), true)
+      } finally {
+        harness.restore()
+      }
+    }
+  } finally {
+    Date.now = originalNow
+    console.warn = originalWarn
   }
 })
