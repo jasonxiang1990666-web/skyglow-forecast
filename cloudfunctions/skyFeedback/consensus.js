@@ -216,6 +216,19 @@ function buildObservation({ forecastRecord, consensus, rows, reviewedAt }) {
   }
 }
 
+async function registerAccuracyCity(transaction, observation, updatedAt) {
+  const cityCode = String(observation && observation.cityCode || '').trim()
+  if (!cityCode) return
+  const observedAt = finite(observation.observedAt)
+  await transaction.collection('accuracyCityRegistry').doc(cityCode).set({
+    data: {
+      cityCode,
+      lastObservedAt: observedAt,
+      updatedAt
+    }
+  })
+}
+
 async function readAllPages(collection, query) {
   const rows = []
   let offset = 0
@@ -345,6 +358,7 @@ async function promoteConsensusBatch({ db, eventKey, forecastRecord } = {}) {
       .slice(0, MAX_NEW_CONTRIBUTORS_PER_TRANSACTION)
 
     if (existing && !newIds.length) {
+      await registerAccuracyCity(transaction, existing, db.serverDate())
       outcome = {
         promoted: true,
         formed: true,
@@ -387,6 +401,7 @@ async function promoteConsensusBatch({ db, eventKey, forecastRecord } = {}) {
       }
     })))
     await observationRef.set({ data: observation })
+    await registerAccuracyCity(transaction, observation, reviewedAt)
     outcome = {
       promoted: true,
       formed: true,

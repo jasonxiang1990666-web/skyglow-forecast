@@ -112,8 +112,8 @@ test('degrades a stale stored accuracy stat to collecting outside its current co
                         hitCount: 30,
                         accuracyRate: 1,
                         windowDays: 30,
-                        coverageStart: now - 32 * 24 * 60 * 60 * 1000,
-                        coverageEnd: now - 2 * 24 * 60 * 60 * 1000
+                        coverageStart: now - 60 * 24 * 60 * 60 * 1000,
+                        coverageEnd: now - 26 * 60 * 60 * 1000
                       }]
                     }
                   }
@@ -132,12 +132,12 @@ test('degrades a stale stored accuracy stat to collecting outside its current co
   }
 })
 
-test('aggregates bounded city pages on the server without raw observation scans', async () => {
+test('reads bounded registry pages and aggregates only their indexed cities', async () => {
   const originalLoad = Module._load
   const indexPath = require.resolve('../index')
   const now = Date.parse('2026-08-27T02:20:00+08:00')
   const aggregateCalls = []
-  const rawWhereCalls = []
+  const registryQueries = []
   const writes = []
   Module._load = function load(request, parent, isMain) {
     if (request === 'wx-server-sdk') {
@@ -153,18 +153,7 @@ test('aggregates bounded city pages on the server without raw observation scans'
   }
   delete require.cache[indexPath]
 
-  const firstPage = Array.from({ length: 100 }, (_, index) => ({
-    _id: `101010${String(100 + index).padStart(3, '0')}`,
-    sunriseSampleCount: 30,
-    sunriseHitCount: 29,
-    sunsetSampleCount: 0,
-    sunsetHitCount: 0,
-    fireCloudSampleCount: 0,
-    fireCloudHitCount: 0
-  }))
-  const secondPage = [
-    { _id: '101020100', sunriseSampleCount: 0, sunriseHitCount: 0, sunsetSampleCount: 30, sunsetHitCount: 28, fireCloudSampleCount: 1, fireCloudHitCount: 1 }
-  ]
+  const registryPage = [{ cityCode: '101010100' }, { cityCode: '101020100' }]
   const aggregate = {
     match(value) { this.matchValues = [...(this.matchValues || []), value]; return this },
     project(value) { this.projects = [...(this.projects || []), value]; return this },
@@ -172,9 +161,11 @@ test('aggregates bounded city pages on the server without raw observation scans'
     sort(value) { this.sortValue = value; return this },
     limit(value) { this.limitValue = value; return this },
     async end() {
-      const page = aggregateCalls.length ? secondPage : firstPage
       aggregateCalls.push(this)
-      return { data: page }
+      const cityCode = this.matchValues.find((value) => typeof value.cityCode === 'string')?.cityCode
+      if (cityCode === '101010100') return { data: [{ _id: 'sunrise', sampleCount: 30, hitCount: 29 }] }
+      if (cityCode === '101020100') return { data: [{ _id: 'sunset', sampleCount: 30, hitCount: 28 }, { _id: 'fireCloud', sampleCount: 1, hitCount: 1 }] }
+      return { data: [] }
     }
   }
   const db = {
@@ -194,8 +185,19 @@ test('aggregates bounded city pages on the server without raw observation scans'
     collection(name) {
       if (name === 'skyObservations') {
         return {
-          aggregate() { return Object.create(aggregate) },
-          where(value) { rawWhereCalls.push(value); return { orderBy() { return this }, skip() { return this }, limit() { return this }, async get() { return { data: [] } } } }
+          aggregate() { return Object.create(aggregate) }
+        }
+      }
+      if (name === 'accuracyCityRegistry') {
+        return {
+          where(query) {
+            registryQueries.push(query)
+            return {
+              orderBy() { return this },
+              limit() { return this },
+              async get() { return { data: registryPage } }
+            }
+          }
         }
       }
       return {
@@ -209,13 +211,48 @@ test('aggregates bounded city pages on the server without raw observation scans'
   try {
     const { aggregateAllActiveCities } = require('../index')
     const result = await aggregateAllActiveCities(db, now)
-    assert.equal(result.cityCount, 101)
-    assert.equal(writes.length, 303)
+    assert.equal(result.cityCount, 2)
+    assert.equal(writes.length, 6)
     assert.equal(writes.find((item) => item.data.cityCode === '101010100' && item.data.sceneType === 'sunrise').data.accuracyRate, 29 / 30)
     assert.equal(aggregateCalls.length, 2)
-    assert.equal(rawWhereCalls.length, 0)
-    assert.ok(aggregateCalls[0].matchValues.some((value) => value.observedAt))
-    assert.deepEqual(aggregateCalls[1].matchValues[0].cityCode, { gt: '101010199' })
+    assert.deepEqual(registryQueries, [{ cityCode: { gt: '' } }])
+    assert.deepEqual(aggregateCalls.map((call) => call.matchValues.find((value) => typeof value.cityCode === 'string').cityCode), ['101010100', '101020100'])
+    assert.ok(aggregateCalls.every((call) => call.matchValues.some((value) => value.observedAt)))
+  } finally {
+    Module._load = originalLoad
+    delete require.cache[indexPath]
+  }
+})
+
+test('does not infer legacy cities outside the registry or write their stats', async () => {
+  const originalLoad = Module._load
+  const indexPath = require.resolve('../index')
+  Module._load = function load(request, parent, isMain) {
+    if (request === 'wx-server-sdk') return { DYNAMIC_CURRENT_ENV: 'test', init() {}, database() { return {} } }
+    return originalLoad.call(this, request, parent, isMain)
+  }
+  delete require.cache[indexPath]
+  let aggregateCalled = false
+
+  try {
+    const { aggregateAllActiveCities } = require('../index')
+    const result = await aggregateAllActiveCities({
+      command: { gt(value) { return { gt: value } } },
+      collection(name) {
+        if (name === 'accuracyCityRegistry') {
+          return {
+            where() {
+              return { orderBy() { return this }, limit() { return this }, async get() { return { data: [] } } }
+            }
+          }
+        }
+        if (name === 'skyObservations') return { aggregate() { aggregateCalled = true; throw new Error('legacy observations must not be scanned') } }
+        throw new Error(`unexpected collection ${name}`)
+      }
+    }, Date.parse('2026-08-27T02:20:00+08:00'))
+
+    assert.deepEqual(result, { ok: true, cityCount: 0, cities: [] })
+    assert.equal(aggregateCalled, false)
   } finally {
     Module._load = originalLoad
     delete require.cache[indexPath]

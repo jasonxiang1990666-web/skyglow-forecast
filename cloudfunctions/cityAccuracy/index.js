@@ -2,8 +2,10 @@ const cloud = require('wx-server-sdk')
 const { SCENE_TYPES, WINDOW_DAYS, collecting } = require('./metrics')
 
 const DAY = 24 * 60 * 60 * 1000
-const CITY_PAGE_SIZE = 100
-const MAX_STATS_AGE = 26 * 60 * 60 * 1000
+const REGISTRY_PAGE_SIZE = 100
+const CITY_CONCURRENCY = 4
+const MAX_STATS_AGE = 24 * 60 * 60 * 1000 + 5 * 60 * 1000
+const COVERAGE_SKEW = 5 * 60 * 1000
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
@@ -66,11 +68,18 @@ function hitExpression() {
   }
 }
 
-function sceneCount($, sceneType, field) {
-  return $.sum({ $cond: [{ $eq: ['$sceneType', sceneType] }, field, 0] })
+async function readRegistryPage(db, afterCityCode = '') {
+  const command = db && db.command
+  if (!command || typeof command.gt !== 'function') throw new Error('city registry query unavailable')
+  const result = await db.collection('accuracyCityRegistry')
+    .where({ cityCode: command.gt(afterCityCode) })
+    .orderBy('cityCode', 'asc')
+    .limit(REGISTRY_PAGE_SIZE)
+    .get()
+  return result && Array.isArray(result.data) ? result.data : []
 }
 
-async function aggregateCityPage(db, now, afterCityCode = '') {
+async function aggregateCity(db, cityCode, now) {
   const command = db && db.command
   const $ = command && command.aggregate
   if (!command || !$ || typeof command.and !== 'function' || typeof command.gte !== 'function' || typeof command.gt !== 'function' || typeof command.in !== 'function' || typeof command.neq !== 'function') {
@@ -81,7 +90,7 @@ async function aggregateCityPage(db, now, afterCityCode = '') {
   const observationDate = command.and(command.neq(null), command.neq(''))
   const pipeline = db.collection('skyObservations').aggregate()
     .match({
-      cityCode: command.gt(afterCityCode),
+      cityCode,
       sceneType: command.in(SCENE_TYPES),
       observationDate,
       windowStart: command.neq(null),
@@ -107,18 +116,21 @@ async function aggregateCityPage(db, now, afterCityCode = '') {
     .match({ forecastBin: command.in([0, 1, 2, 3]), observedBin: command.in([0, 1, 2, 3]) })
     .project({ cityCode: 1, sceneType: 1, hit: hitExpression() })
     .group({
-      _id: '$cityCode',
-      sunriseSampleCount: sceneCount($, 'sunrise', 1),
-      sunriseHitCount: sceneCount($, 'sunrise', '$hit'),
-      sunsetSampleCount: sceneCount($, 'sunset', 1),
-      sunsetHitCount: sceneCount($, 'sunset', '$hit'),
-      fireCloudSampleCount: sceneCount($, 'fireCloud', 1),
-      fireCloudHitCount: sceneCount($, 'fireCloud', '$hit')
+      _id: '$sceneType',
+      sampleCount: $.sum(1),
+      hitCount: $.sum('$hit')
     })
-    .sort({ _id: 1 })
-    .limit(CITY_PAGE_SIZE)
   const result = await pipeline.end()
-  return result && Array.isArray(result.data) ? result.data : []
+  const metrics = {
+    sunrise: collecting(),
+    sunset: collecting(),
+    fireCloud: collecting()
+  }
+  for (const row of (result && Array.isArray(result.data) ? result.data : [])) {
+    const sceneType = String(row && row._id || '')
+    if (SCENE_TYPES.includes(sceneType)) metrics[sceneType] = metricFromCounts(row.sampleCount, row.hitCount)
+  }
+  return metrics
 }
 
 function metricFromCounts(sampleCount, hitCount) {
@@ -131,14 +143,6 @@ function metricFromCounts(sampleCount, hitCount) {
     accuracyRate: samples >= 30 ? hits / samples : null,
     windowDays: WINDOW_DAYS,
     status: samples >= 30 ? 'ready' : 'collecting'
-  }
-}
-
-function metricsFromCityAggregate(row) {
-  return {
-    sunrise: metricFromCounts(row && row.sunriseSampleCount, row && row.sunriseHitCount),
-    sunset: metricFromCounts(row && row.sunsetSampleCount, row && row.sunsetHitCount),
-    fireCloud: metricFromCounts(row && row.fireCloudSampleCount, row && row.fireCloudHitCount)
   }
 }
 
@@ -157,21 +161,38 @@ async function writeCityStats(db, cityCode, metrics, now) {
   })))
 }
 
+async function mapWithConcurrency(items, limit, task) {
+  const results = new Array(items.length)
+  let next = 0
+  async function worker() {
+    while (next < items.length) {
+      const index = next
+      next += 1
+      results[index] = await task(items[index])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
 async function aggregateAllActiveCities(db, now = Date.now()) {
   const summaries = []
   let afterCityCode = ''
   while (true) {
-    const page = await aggregateCityPage(db, now, afterCityCode)
+    const page = await readRegistryPage(db, afterCityCode)
     if (!page.length) break
-    for (const row of page) {
-      const cityCode = String(row && row._id || '').trim()
+    const cityCodes = page.map((row) => String(row && row.cityCode || '').trim())
+    for (const cityCode of cityCodes) {
       if (!cityCode || cityCode <= afterCityCode) throw new Error('invalid city aggregation cursor')
-      const metrics = metricsFromCityAggregate(row)
-      await writeCityStats(db, cityCode, metrics, now)
-      summaries.push({ cityCode, ...metrics })
-      afterCityCode = cityCode
     }
-    if (page.length < CITY_PAGE_SIZE) break
+    const pageSummaries = await mapWithConcurrency(cityCodes, CITY_CONCURRENCY, async (cityCode) => {
+      const metrics = await aggregateCity(db, cityCode, now)
+      await writeCityStats(db, cityCode, metrics, now)
+      return { cityCode, ...metrics }
+    })
+    summaries.push(...pageSummaries)
+    afterCityCode = cityCodes[cityCodes.length - 1]
+    if (page.length < REGISTRY_PAGE_SIZE) break
   }
   return { ok: true, cityCount: summaries.length, cities: summaries }
 }
@@ -179,8 +200,8 @@ async function aggregateAllActiveCities(db, now = Date.now()) {
 function hasCurrentCoverage(stat, now) {
   const coverageStart = finite(stat && stat.coverageStart)
   const coverageEnd = finite(stat && stat.coverageEnd)
-  if (coverageStart === null || coverageEnd === null || coverageEnd > now || now - coverageEnd > MAX_STATS_AGE) return false
-  return coverageStart <= coverageEnd - WINDOW_DAYS * DAY
+  if (coverageStart === null || coverageEnd === null || coverageEnd > now + COVERAGE_SKEW || now - coverageEnd > MAX_STATS_AGE) return false
+  return Math.abs((coverageEnd - coverageStart) - WINDOW_DAYS * DAY) <= COVERAGE_SKEW
 }
 
 function metricFromStat(stat, now) {
@@ -238,4 +259,4 @@ async function main(event = {}) {
   }
 }
 
-module.exports = { main, aggregateAllActiveCities, aggregateCityPage, getCityAccuracy, fallback, statId }
+module.exports = { main, aggregateAllActiveCities, aggregateCity, readRegistryPage, getCityAccuracy, fallback, statId }

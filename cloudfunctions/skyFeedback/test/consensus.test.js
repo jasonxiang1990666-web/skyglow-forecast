@@ -41,6 +41,7 @@ function row(id, user, overrides = {}) {
 function fakeDatabase(initialRows, authoritativeForecast = forecastRecord, options = {}) {
   const feedback = new Map(initialRows.map((item) => [item._id, { ...item }]))
   const observations = new Map(Object.entries(options.observations || {}))
+  const accuracyCityRegistry = new Map(Object.entries(options.accuracyCityRegistry || {}))
   let nextFeedbackId = 1
 
   function matches(item, query) {
@@ -55,7 +56,7 @@ function fakeDatabase(initialRows, authoritativeForecast = forecastRecord, optio
     for (const [key, value] of source) target.set(key, value)
   }
 
-  function collection(name, feedbackState, observationState) {
+  function collection(name, feedbackState, observationState, registryState) {
     if (name === 'forecastRecords') {
       return {
         doc(id) {
@@ -133,12 +134,24 @@ function fakeDatabase(initialRows, authoritativeForecast = forecastRecord, optio
         }
       }
     }
+    if (name === 'accuracyCityRegistry') {
+      return {
+        doc(id) {
+          return {
+            async set({ data }) {
+              registryState.set(id, { ...data })
+            }
+          }
+        }
+      }
+    }
     throw new Error(`Unexpected collection: ${name}`)
   }
 
   const database = {
     feedback,
     observations,
+    accuracyCityRegistry,
     command: {
       gte(operand) {
         return { operation: 'gte', operand }
@@ -148,19 +161,21 @@ function fakeDatabase(initialRows, authoritativeForecast = forecastRecord, optio
       return 'SERVER_DATE'
     },
     collection(name) {
-      return collection(name, feedback, observations)
+      return collection(name, feedback, observations, accuracyCityRegistry)
     },
     async runTransaction(updateFunction) {
       const transactionFeedback = new Map([...feedback].map(([id, item]) => [id, { ...item }]))
       const transactionObservations = new Map([...observations].map(([id, item]) => [id, { ...item }]))
+      const transactionRegistry = new Map([...accuracyCityRegistry].map(([id, item]) => [id, { ...item }]))
       const transaction = {
         collection(name) {
-          return collection(name, transactionFeedback, transactionObservations)
+          return collection(name, transactionFeedback, transactionObservations, transactionRegistry)
         }
       }
       const result = await updateFunction(transaction)
       replaceMap(feedback, transactionFeedback)
       replaceMap(observations, transactionObservations)
+      replaceMap(accuracyCityRegistry, transactionRegistry)
       return result
     }
   }
@@ -249,6 +264,19 @@ test('promotion is idempotent per forecast scene and trusts only the authoritati
   assert.deepEqual(observation.sourceFeedbackIds, ['a', 'b', 'c'])
   assert.equal(observation.anonymousUserHash, undefined)
   assert.equal(observation.note, undefined)
+})
+
+test('promotion atomically registers the observation city for accuracy aggregation', async () => {
+  const db = fakeDatabase([
+    row('a', 'u1'),
+    row('b', 'u2'),
+    row('c', 'u3')
+  ])
+
+  await promoteConsensusBatch({ db, eventKey: forecastRecord.forecastId, forecastRecord })
+
+  assert.equal(db.accuracyCityRegistry?.get(forecastRecord.cityCode)?.cityCode, forecastRecord.cityCode)
+  assert.equal(db.accuracyCityRegistry?.get(forecastRecord.cityCode)?.lastObservedAt, forecastRecord.windowEnd)
 })
 
 test('promotion writes nothing when authoritative scope has no consensus', async () => {
@@ -356,6 +384,7 @@ test('an observation write failure rolls back every feedback approval', async ()
 
   assert.equal([...db.feedback.values()].every((item) => item.reviewStatus === 'provisional'), true)
   assert.equal(db.observations.size, 0)
+  assert.equal(db.accuracyCityRegistry.size, 0)
 })
 
 test('candidate discovery paginates past fifty noisy rows to later valid voters', async () => {
