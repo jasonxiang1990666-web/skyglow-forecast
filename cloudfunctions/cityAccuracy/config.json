@@ -1,0 +1,9 @@
+{
+  "triggers": [
+    {
+      "name": "aggregate-city-accuracy",
+      "type": "timer",
+      "config": "0 20 2 * * * *"
+    }
+  ]
+}
