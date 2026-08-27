@@ -138,7 +138,12 @@ function fakeDatabase(initialRows, authoritativeForecast = forecastRecord, optio
       return {
         doc(id) {
           return {
+            async get() {
+              if (!registryState.has(id)) throw new Error(`document.get:fail document with _id ${id} does not exist`)
+              return { data: { ...registryState.get(id) } }
+            },
             async set({ data }) {
+              if (options.failRegistrySet) throw new Error('injected registry failure')
               registryState.set(id, { ...data })
             }
           }
@@ -279,6 +284,19 @@ test('promotion atomically registers the observation city for accuracy aggregati
   assert.equal(db.accuracyCityRegistry?.get(forecastRecord.cityCode)?.lastObservedAt, forecastRecord.windowEnd)
 })
 
+test('out-of-order consensus promotion never moves a registry timestamp backward', async () => {
+  const newerObservedAt = forecastRecord.windowEnd + 60 * 60 * 1000
+  const db = fakeDatabase(
+    [row('a', 'u1'), row('b', 'u2'), row('c', 'u3')],
+    forecastRecord,
+    { accuracyCityRegistry: { [forecastRecord.cityCode]: { cityCode: forecastRecord.cityCode, lastObservedAt: newerObservedAt, updatedAt: 'earlier' } } }
+  )
+
+  await promoteConsensusBatch({ db, eventKey: forecastRecord.forecastId, forecastRecord })
+
+  assert.equal(db.accuracyCityRegistry.get(forecastRecord.cityCode).lastObservedAt, newerObservedAt)
+})
+
 test('promotion writes nothing when authoritative scope has no consensus', async () => {
   const db = fakeDatabase([
     row('a', 'u1', { seenLevel: 1, colorIntensity: 1 }),
@@ -385,6 +403,23 @@ test('an observation write failure rolls back every feedback approval', async ()
   assert.equal([...db.feedback.values()].every((item) => item.reviewStatus === 'provisional'), true)
   assert.equal(db.observations.size, 0)
   assert.equal(db.accuracyCityRegistry.size, 0)
+})
+
+test('a registry write failure rolls back the consensus observation and approvals', async () => {
+  const db = fakeDatabase(
+    [row('a', 'u1'), row('b', 'u2'), row('c', 'u3')],
+    forecastRecord,
+    { failRegistrySet: true }
+  )
+
+  await assert.rejects(
+    promoteConsensusBatch({ db, eventKey: forecastRecord.forecastId, forecastRecord }),
+    /injected registry failure/
+  )
+
+  assert.equal(db.observations.size, 0)
+  assert.equal(db.accuracyCityRegistry.size, 0)
+  assert.equal([...db.feedback.values()].every((item) => item.reviewStatus === 'provisional'), true)
 })
 
 test('candidate discovery paginates past fifty noisy rows to later valid voters', async () => {

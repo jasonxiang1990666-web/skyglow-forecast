@@ -68,11 +68,28 @@ function hitExpression() {
   }
 }
 
-async function readRegistryPage(db, afterCityCode = '') {
+function registryCursorQuery(command, cutoff, cursor) {
+  if (!cursor) return { lastObservedAt: command.gte(cutoff) }
+  const lastObservedAt = finite(cursor.lastObservedAt)
+  const cityCode = String(cursor.cityCode || '').trim()
+  if (lastObservedAt === null || lastObservedAt < cutoff || !cityCode) {
+    throw new Error('invalid city registry cursor')
+  }
+  return command.or([
+    { lastObservedAt: command.and(command.gte(cutoff), command.gt(lastObservedAt)) },
+    { lastObservedAt: command.and(command.gte(cutoff), command.eq(lastObservedAt)), cityCode: command.gt(cityCode) }
+  ])
+}
+
+async function readRegistryPage(db, now, cursor = null) {
   const command = db && db.command
-  if (!command || typeof command.gt !== 'function') throw new Error('city registry query unavailable')
+  if (!command || typeof command.gte !== 'function' || typeof command.gt !== 'function' || typeof command.eq !== 'function' || typeof command.and !== 'function' || typeof command.or !== 'function') {
+    throw new Error('city registry query unavailable')
+  }
+  const cutoff = now - WINDOW_DAYS * DAY
   const result = await db.collection('accuracyCityRegistry')
-    .where({ cityCode: command.gt(afterCityCode) })
+    .where(registryCursorQuery(command, cutoff, cursor))
+    .orderBy('lastObservedAt', 'asc')
     .orderBy('cityCode', 'asc')
     .limit(REGISTRY_PAGE_SIZE)
     .get()
@@ -177,21 +194,29 @@ async function mapWithConcurrency(items, limit, task) {
 
 async function aggregateAllActiveCities(db, now = Date.now()) {
   const summaries = []
-  let afterCityCode = ''
+  const cutoff = now - WINDOW_DAYS * DAY
+  let cursor = null
   while (true) {
-    const page = await readRegistryPage(db, afterCityCode)
+    const page = await readRegistryPage(db, now, cursor)
     if (!page.length) break
-    const cityCodes = page.map((row) => String(row && row.cityCode || '').trim())
-    for (const cityCode of cityCodes) {
-      if (!cityCode || cityCode <= afterCityCode) throw new Error('invalid city aggregation cursor')
+    const cities = page.map((row) => ({
+      cityCode: String(row && row.cityCode || '').trim(),
+      lastObservedAt: finite(row && row.lastObservedAt)
+    }))
+    for (const city of cities) {
+      const followsCursor = !cursor || city.lastObservedAt > cursor.lastObservedAt || (city.lastObservedAt === cursor.lastObservedAt && city.cityCode > cursor.cityCode)
+      if (!city.cityCode || city.lastObservedAt === null || city.lastObservedAt < cutoff || !followsCursor) {
+        throw new Error('invalid city aggregation cursor')
+      }
     }
+    const cityCodes = cities.map((city) => city.cityCode)
     const pageSummaries = await mapWithConcurrency(cityCodes, CITY_CONCURRENCY, async (cityCode) => {
       const metrics = await aggregateCity(db, cityCode, now)
       await writeCityStats(db, cityCode, metrics, now)
       return { cityCode, ...metrics }
     })
     summaries.push(...pageSummaries)
-    afterCityCode = cityCodes[cityCodes.length - 1]
+    cursor = cities[cities.length - 1]
     if (page.length < REGISTRY_PAGE_SIZE) break
   }
   return { ok: true, cityCount: summaries.length, cities: summaries }

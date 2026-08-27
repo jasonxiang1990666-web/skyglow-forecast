@@ -153,7 +153,10 @@ test('reads bounded registry pages and aggregates only their indexed cities', as
   }
   delete require.cache[indexPath]
 
-  const registryPage = [{ cityCode: '101010100' }, { cityCode: '101020100' }]
+  const registryPage = [
+    { cityCode: '101010100', lastObservedAt: now - 1000 },
+    { cityCode: '101020100', lastObservedAt: now - 500 }
+  ]
   const aggregate = {
     match(value) { this.matchValues = [...(this.matchValues || []), value]; return this },
     project(value) { this.projects = [...(this.projects || []), value]; return this },
@@ -173,8 +176,10 @@ test('reads bounded registry pages and aggregates only their indexed cities', as
       gte(value) { return { gte: value, and(other) { return { gte: value, and: other } } } },
       lte(value) { return { lte: value } },
       gt(value) { return { gt: value } },
+      eq(value) { return { eq: value } },
       neq(value) { return { neq: value } },
       and(...conditions) { return { and: conditions } },
+      or(conditions) { return { or: conditions } },
       in(value) { return { in: value } },
       aggregate: {
         first(value) { return { first: value } },
@@ -215,9 +220,212 @@ test('reads bounded registry pages and aggregates only their indexed cities', as
     assert.equal(writes.length, 6)
     assert.equal(writes.find((item) => item.data.cityCode === '101010100' && item.data.sceneType === 'sunrise').data.accuracyRate, 29 / 30)
     assert.equal(aggregateCalls.length, 2)
-    assert.deepEqual(registryQueries, [{ cityCode: { gt: '' } }])
+    assert.equal(registryQueries.length, 1)
+    assert.equal(registryQueries[0].lastObservedAt.gte, now - 30 * 24 * 60 * 60 * 1000)
     assert.deepEqual(aggregateCalls.map((call) => call.matchValues.find((value) => typeof value.cityCode === 'string').cityCode), ['101010100', '101020100'])
     assert.ok(aggregateCalls.every((call) => call.matchValues.some((value) => value.observedAt)))
+  } finally {
+    Module._load = originalLoad
+    delete require.cache[indexPath]
+  }
+})
+
+test('uses an active compound lastObservedAt and cityCode cursor without skip offsets', async () => {
+  const originalLoad = Module._load
+  const indexPath = require.resolve('../index')
+  const now = Date.parse('2026-08-27T02:20:00+08:00')
+  const queries = []
+  const orders = []
+  Module._load = function load(request, parent, isMain) {
+    if (request === 'wx-server-sdk') return { DYNAMIC_CURRENT_ENV: 'test', init() {}, database() { return {} } }
+    return originalLoad.call(this, request, parent, isMain)
+  }
+  delete require.cache[indexPath]
+  const command = {
+    gte(value) { return { gte: value } },
+    gt(value) { return { gt: value } },
+    eq(value) { return { eq: value } },
+    and(...values) { return { and: values } },
+    or(value) { return { or: value } }
+  }
+  const db = {
+    command,
+    collection() {
+      return {
+        where(query) {
+          queries.push(query)
+          return {
+            orderBy(field, direction) { orders.push([field, direction]); return this },
+            limit() { return this },
+            async get() { return { data: [] } }
+          }
+        }
+      }
+    }
+  }
+
+  try {
+    const { readRegistryPage } = require('../index')
+    await readRegistryPage(db, now, null)
+    await readRegistryPage(db, now, { lastObservedAt: now - 1000, cityCode: '101010100' })
+    const cutoff = now - 30 * 24 * 60 * 60 * 1000
+    assert.deepEqual(queries[0], { lastObservedAt: { gte: cutoff } })
+    assert.deepEqual(queries[1], {
+      or: [
+        { lastObservedAt: { and: [{ gte: cutoff }, { gt: now - 1000 }] } },
+        { lastObservedAt: { and: [{ gte: cutoff }, { eq: now - 1000 }] }, cityCode: { gt: '101010100' } }
+      ]
+    })
+    assert.deepEqual(orders, [['lastObservedAt', 'asc'], ['cityCode', 'asc'], ['lastObservedAt', 'asc'], ['cityCode', 'asc']])
+  } finally {
+    Module._load = originalLoad
+    delete require.cache[indexPath]
+  }
+})
+
+test('advances aggregation through active registry pages with a compound cursor', async () => {
+  const originalLoad = Module._load
+  const indexPath = require.resolve('../index')
+  const now = Date.parse('2026-08-27T02:20:00+08:00')
+  const cutoff = now - 30 * 24 * 60 * 60 * 1000
+  const activeAt = now - 1000
+  const firstPage = Array.from({ length: 100 }, (_, index) => ({
+    cityCode: `1010${String(index).padStart(5, '0')}`,
+    lastObservedAt: activeAt
+  }))
+  const secondPage = [{ cityCode: '101999999', lastObservedAt: activeAt }]
+  const registryQueries = []
+  const aggregateCities = []
+  Module._load = function load(request, parent, isMain) {
+    if (request === 'wx-server-sdk') return { DYNAMIC_CURRENT_ENV: 'test', init() {}, database() { return {} } }
+    return originalLoad.call(this, request, parent, isMain)
+  }
+  delete require.cache[indexPath]
+
+  const db = {
+    command: {
+      gte(value) { return { gte: value } },
+      lte(value) { return { lte: value } },
+      gt(value) { return { gt: value } },
+      eq(value) { return { eq: value } },
+      neq(value) { return { neq: value } },
+      and(...values) { return { and: values } },
+      or(value) { return { or: value } },
+      in(value) { return { in: value } },
+      aggregate: { first(value) { return { first: value } }, sum(value) { return { sum: value } } }
+    },
+    serverDate() { return 'server-date' },
+    collection(name) {
+      if (name === 'accuracyCityRegistry') {
+        return {
+          where(query) {
+            registryQueries.push(query)
+            return {
+              orderBy() { return this },
+              limit() { return this },
+              async get() { return { data: registryQueries.length === 1 ? firstPage : secondPage } }
+            }
+          }
+        }
+      }
+      if (name === 'skyObservations') {
+        return {
+          aggregate() {
+            const builder = {
+              match(value) { this.matches = [...(this.matches || []), value]; return this },
+              project() { return this },
+              group() { return this },
+              async end() {
+                aggregateCities.push(this.matches.find((value) => typeof value.cityCode === 'string').cityCode)
+                return { data: [] }
+              }
+            }
+            return builder
+          }
+        }
+      }
+      return { doc() { return { async set() {} } } }
+    }
+  }
+
+  try {
+    const { aggregateAllActiveCities } = require('../index')
+    const result = await aggregateAllActiveCities(db, now)
+    assert.equal(result.cityCount, 101)
+    assert.equal(aggregateCities.length, 101)
+    assert.deepEqual(registryQueries[0], { lastObservedAt: { gte: cutoff } })
+    assert.deepEqual(registryQueries[1], {
+      or: [
+        { lastObservedAt: { and: [{ gte: cutoff }, { gt: activeAt }] } },
+        { lastObservedAt: { and: [{ gte: cutoff }, { eq: activeAt }] }, cityCode: { gt: '101000099' } }
+      ]
+    })
+    assert.equal(aggregateCities.at(-1), '101999999')
+  } finally {
+    Module._load = originalLoad
+    delete require.cache[indexPath]
+  }
+})
+
+test('does not aggregate inactive registry cities', async () => {
+  const originalLoad = Module._load
+  const indexPath = require.resolve('../index')
+  const now = Date.parse('2026-08-27T02:20:00+08:00')
+  Module._load = function load(request, parent, isMain) {
+    if (request === 'wx-server-sdk') return { DYNAMIC_CURRENT_ENV: 'test', init() {}, database() { return {} } }
+    return originalLoad.call(this, request, parent, isMain)
+  }
+  delete require.cache[indexPath]
+  const aggregateCalls = []
+  const builder = {
+    match(value) { this.matches = [...(this.matches || []), value]; return this },
+    project() { return this },
+    group() { return this },
+    async end() { aggregateCalls.push(this); return { data: [] } }
+  }
+  const db = {
+    command: {
+      gte(value) { return { gte: value } },
+      lte(value) { return { lte: value } },
+      gt(value) { return { gt: value } },
+      eq(value) { return { eq: value } },
+      neq(value) { return { neq: value } },
+      and(...values) { return { and: values } },
+      or(value) { return { or: value } },
+      in(value) { return { in: value } },
+      aggregate: { first(value) { return { first: value } }, sum(value) { return { sum: value } } }
+    },
+    serverDate() { return 'server-date' },
+    collection(name) {
+      if (name === 'accuracyCityRegistry') {
+        return {
+          where(query) {
+            return {
+              orderBy() { return this },
+              limit() { return this },
+              async get() {
+                const activeQuery = query.lastObservedAt && query.lastObservedAt.gte === now - 30 * 24 * 60 * 60 * 1000
+                return {
+                  data: activeQuery
+                    ? [{ cityCode: '101010100', lastObservedAt: now - 1000 }]
+                    : [{ cityCode: '101010100', lastObservedAt: now - 1000 }, { cityCode: '999999999', lastObservedAt: now - 31 * 24 * 60 * 60 * 1000 }]
+                }
+              }
+            }
+          }
+        }
+      }
+      if (name === 'skyObservations') return { aggregate() { return Object.create(builder) } }
+      return { doc() { return { async set() {} } } }
+    }
+  }
+
+  try {
+    const { aggregateAllActiveCities } = require('../index')
+    const result = await aggregateAllActiveCities(db, now)
+    assert.equal(result.cityCount, 1)
+    assert.equal(aggregateCalls.length, 1)
+    assert.equal(aggregateCalls[0].matches.find((item) => typeof item.cityCode === 'string').cityCode, '101010100')
   } finally {
     Module._load = originalLoad
     delete require.cache[indexPath]
@@ -237,7 +445,13 @@ test('does not infer legacy cities outside the registry or write their stats', a
   try {
     const { aggregateAllActiveCities } = require('../index')
     const result = await aggregateAllActiveCities({
-      command: { gt(value) { return { gt: value } } },
+      command: {
+        gte(value) { return { gte: value } },
+        gt(value) { return { gt: value } },
+        eq(value) { return { eq: value } },
+        and(...values) { return { and: values } },
+        or(value) { return { or: value } }
+      },
       collection(name) {
         if (name === 'accuracyCityRegistry') {
           return {

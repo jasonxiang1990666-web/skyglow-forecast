@@ -219,11 +219,19 @@ function buildObservation({ forecastRecord, consensus, rows, reviewedAt }) {
 async function registerAccuracyCity(transaction, observation, updatedAt) {
   const cityCode = String(observation && observation.cityCode || '').trim()
   if (!cityCode) return
-  const observedAt = finite(observation.observedAt)
-  await transaction.collection('accuracyCityRegistry').doc(cityCode).set({
+  const reference = transaction.collection('accuracyCityRegistry').doc(cityCode)
+  const existing = await getOptionalDocument(reference)
+  const existingObservedAt = finite(existing && existing.data && existing.data.lastObservedAt)
+  const candidateObservedAt = finite(observation.observedAt)
+  const lastObservedAt = existingObservedAt === null
+    ? candidateObservedAt
+    : candidateObservedAt === null
+      ? existingObservedAt
+      : Math.max(existingObservedAt, candidateObservedAt)
+  await reference.set({
     data: {
       cityCode,
-      lastObservedAt: observedAt,
+      lastObservedAt,
       updatedAt
     }
   })
