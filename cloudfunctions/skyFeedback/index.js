@@ -1,6 +1,15 @@
 const crypto = require('crypto')
 const cloud = require('wx-server-sdk')
-const { validateFeedback, validateForecastBinding, consensusSeenLevel, assessLocationGrid, evaluateSubmission } = require('./review')
+const {
+  validateFeedback,
+  validateForecastBinding,
+  consensusSeenLevel,
+  assessLocationGrid,
+  assessSubmissionFrequency,
+  feedbackDocumentId,
+  insertFeedbackOnce,
+  evaluateSubmission
+} = require('./review')
 const { promoteConsensusBatch } = require('./consensus')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
@@ -34,14 +43,29 @@ async function getConsensus(eventKey) {
   }
 }
 
+async function getRecentSubmissions(anonymousUserHash) {
+  try {
+    const result = await db.collection('skyFeedback')
+      .where({ anonymousUserHash })
+      .orderBy('submittedAt', 'desc')
+      .limit(20)
+      .get()
+    return Array.isArray(result.data) ? result.data : []
+  } catch (error) {
+    console.warn('feedback frequency lookup failed', error)
+    return []
+  }
+}
+
 function round(value) {
   return Math.round(value * 100) / 100
 }
 
 async function submit(event, openid) {
+  const now = Date.now()
   const input = validateFeedback(event)
   const forecastRecord = await getForecastRecord(input.forecastId)
-  validateForecastBinding({ feedback: input, forecastRecord, now: Date.now() })
+  validateForecastBinding({ feedback: input, forecastRecord, now })
 
   const anonymousUserHash = hashOpenId(openid)
   const eventKey = forecastRecord.forecastId
@@ -53,11 +77,15 @@ async function submit(event, openid) {
   const consensus = await getConsensus(eventKey)
   const consensusDelta = consensus.average === null ? null : Math.abs(input.seenLevel - consensus.average)
   const locationReview = assessLocationGrid(input.locationGrid, forecastRecord.locationGrid)
+  const frequencyReview = assessSubmissionFrequency(
+    await getRecentSubmissions(anonymousUserHash),
+    { cityCode: forecastRecord.cityCode, now }
+  )
   const review = evaluateSubmission({
     inWindow: true,
     locationScore: locationReview.score,
     locationReason: locationReview.reason,
-    frequencyScore: 1,
+    frequencyScore: frequencyReview.score,
     completenessScore: input.legacyNormalized ? 0.75 : 1,
     consensusDelta,
     consensusCount: consensus.count
@@ -83,7 +111,9 @@ async function submit(event, openid) {
     anonymousUserHash,
     reviewStatus: review.reviewStatus,
     reviewScore: review.reviewScore,
-    reviewReasons: review.reviewReasons,
+    reviewReasons: frequencyReview.reason === 'frequency_normal'
+      ? review.reviewReasons
+      : [...review.reviewReasons, frequencyReview.reason],
     schemaVersion: review.schemaVersion,
     consensusCount: consensus.count,
     consensusAverage: consensus.average === null ? null : round(consensus.average),
@@ -92,18 +122,30 @@ async function submit(event, openid) {
     submittedAt: serverDate,
     reviewedAt: serverDate
   }
-  const writeResult = await db.collection('skyFeedback').add({ data })
+  const writeResult = await insertFeedbackOnce({
+    db,
+    documentId: feedbackDocumentId(forecastRecord.forecastId, anonymousUserHash),
+    data
+  })
+  if (!writeResult.created) {
+    return {
+      ok: false,
+      duplicate: true,
+      status: writeResult.data.reviewStatus,
+      message: '你已提交过本次霞况反馈'
+    }
+  }
   let promoted = false
   try {
     const promotion = await promoteConsensusBatch({ db, eventKey, forecastRecord })
-    promoted = promotion.promoted && promotion.feedbackIds.includes(writeResult._id)
+    promoted = promotion.promoted && promotion.feedbackIds.includes(writeResult.id)
   } catch (error) {
     console.warn('feedback consensus promotion failed', error)
   }
   const finalStatus = promoted ? 'auto_approved' : review.reviewStatus
   return {
     ok: true,
-    id: writeResult._id,
+    id: writeResult.id,
     status: finalStatus,
     reviewScore: review.reviewScore,
     message: finalStatus === 'auto_approved'

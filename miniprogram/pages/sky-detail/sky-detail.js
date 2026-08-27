@@ -1,5 +1,6 @@
 const { getNext24HourForecast, getNearbyViewingSpots, getFeaturedViewingSpots, submitSkyFeedback } = require('../../services/weather')
 const { confidenceDetails } = require('../../utils/forecast-confidence')
+const { savePendingFeedback, claimPendingFeedback, clearPendingFeedback } = require('../../utils/feedback-retry')
 
 function countdownText(minutes) {
   const safeMinutes = Math.max(0, minutes)
@@ -97,7 +98,12 @@ Page({
   onShow() {
     const shareTask = wx.showShareMenu({ menus: ['shareAppMessage'], withShareTicket: true })
     if (shareTask && typeof shareTask.catch === 'function') shareTask.catch(() => {})
-    this.loadDetail()
+    const detailTask = this.loadDetail()
+    if (detailTask && typeof detailTask.then === 'function') {
+      detailTask.then((forecastId) => {
+        if (forecastId) this.retryPendingFeedback()
+      })
+    }
   },
 
   onHide() {
@@ -115,7 +121,7 @@ Page({
   loadDetail(fromPullDown = false) {
     const city = wx.getStorageSync('selectedCity') || getApp().globalData.defaultCity
     this.setData({ city, loading: !fromPullDown, loadError: '' })
-    getNext24HourForecast(city)
+    return getNext24HourForecast(city)
       .then((forecast) => {
         const windows = forecast.skyWindows || [forecast.primaryWindow, forecast.secondaryWindow].filter(Boolean)
         const skyWindow = windows[this.windowIndex] || windows[0]
@@ -154,6 +160,7 @@ Page({
         wx.setNavigationBarTitle({ title: `${selected.type}与火烧云详情` })
         this.startCountdown()
         this.loadFeaturedSpots(city, normalizedWindow)
+        return selected.forecastId
       })
       .catch(() => {
         this.setData({ loading: false, loadError: '暂时无法加载霞况详情，请稍后重试。' })
@@ -382,7 +389,7 @@ Page({
       return
     }
     this.setData({ 'feedback.submitting': true, 'feedback.message': '' })
-    const submit = (location) => submitSkyFeedback({
+    const payload = {
       forecastId: selected.forecastId,
       cityCode: selected.cityCode,
       sceneType: skyWindow.kind,
@@ -393,7 +400,10 @@ Page({
       cloudCondition: feedback.cloudCondition,
       visibilityLevel: feedback.visibilityLevel,
       tags: feedback.tags,
-      note: feedback.note,
+      note: feedback.note
+    }
+    const submit = (location) => submitSkyFeedback({
+      ...payload,
       latitude: location && location.latitude,
       longitude: location && location.longitude
     })
@@ -402,6 +412,7 @@ Page({
     })
     locationTask.then(submit).then((result) => {
       const message = result && result.message ? result.message : '感谢反馈，AI正在核验。'
+      if (result && (result.ok || result.duplicate)) clearPendingFeedback(wx, payload.forecastId)
       this.setData({
         'feedback.submitting': false,
         'feedback.submitted': Boolean(result && (result.ok || result.duplicate)),
@@ -409,9 +420,32 @@ Page({
       })
     }).catch((error) => {
       console.error('sky feedback submit failed', error)
+      savePendingFeedback(wx, payload)
       this.setData({
         'feedback.submitting': false,
         'feedback.message': error && error.message ? error.message : '反馈提交失败，请稍后再试。'
+      })
+    })
+  },
+
+  retryPendingFeedback() {
+    const selected = this.data.selected
+    if (!selected || !selected.forecastId) return
+    const pending = claimPendingFeedback(wx, { now: Date.now(), forecastId: selected.forecastId })
+    if (!pending) return
+    this.setData({ 'feedback.submitting': true, 'feedback.message': '正在重试上次未提交的反馈…' })
+    submitSkyFeedback(pending).then((result) => {
+      const message = result && result.message ? result.message : '感谢反馈，AI正在核验。'
+      this.setData({
+        'feedback.submitting': false,
+        'feedback.submitted': Boolean(result && (result.ok || result.duplicate)),
+        'feedback.message': message
+      })
+    }).catch((error) => {
+      console.error('pending sky feedback retry failed', error)
+      this.setData({
+        'feedback.submitting': false,
+        'feedback.message': error && error.message ? error.message : '反馈自动重试失败，请稍后重新提交。'
       })
     })
   }

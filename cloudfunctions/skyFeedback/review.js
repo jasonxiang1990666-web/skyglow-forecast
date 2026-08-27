@@ -1,3 +1,5 @@
+const crypto = require('crypto')
+
 const SCENE_TYPES = new Set(['sunrise', 'sunset', 'fireCloud'])
 const CLOUD_CONDITIONS = new Set(['few', 'thin', 'layered', 'overcast'])
 const VISIBILITY_LEVELS = new Set(['poor', 'fair', 'good'])
@@ -9,6 +11,8 @@ const ALLOWED_TAGS = new Set([
   '建筑遮挡',
   '视野受建筑遮挡'
 ])
+const FREQUENCY_WINDOW_MS = 10 * 60 * 1000
+const CROSS_CITY_LIMIT = 4
 
 function text(value, maxLength) {
   return String(value == null ? '' : value).trim().slice(0, maxLength)
@@ -56,6 +60,62 @@ function assessLocationGrid(clientLocationGrid, authoritativeLocationGrid) {
   return isAdjacent
     ? { score: 1, reason: 'location_grid_matched' }
     : { score: 0.2, reason: 'location_grid_mismatch' }
+}
+
+function assessSubmissionFrequency(rows = [], { cityCode, now = Date.now() } = {}) {
+  const submittedAt = finite(now)
+  if (submittedAt === null) return { score: 1, reason: 'frequency_normal' }
+  const recentCities = new Set([String(cityCode || '')].filter(Boolean))
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const timestamp = row && row.submittedAt instanceof Date
+      ? row.submittedAt.getTime()
+      : finite(row && row.submittedAt)
+    if (timestamp === null || timestamp < submittedAt - FREQUENCY_WINDOW_MS || timestamp > submittedAt) continue
+    const recentCity = String(row.cityCode || '')
+    if (recentCity) recentCities.add(recentCity)
+  }
+  return recentCities.size >= CROSS_CITY_LIMIT
+    ? { score: 0.2, reason: 'cross_city_frequency_anomaly' }
+    : { score: 1, reason: 'frequency_normal' }
+}
+
+function feedbackDocumentId(forecastId, anonymousUserHash) {
+  const identity = `${String(forecastId || '')}\u0000${String(anonymousUserHash || '')}`
+  return `feedback_${crypto.createHash('sha256').update(identity).digest('hex')}`
+}
+
+function isDocumentNotFound(error) {
+  const message = String(error && (error.errMsg || error.message) || error || '')
+  return /document with _id .+ does not exist/.test(message)
+}
+
+async function insertFeedbackOnce({ db, documentId, data } = {}) {
+  if (!db || typeof db.runTransaction !== 'function' || !documentId || !data) {
+    throw new Error('反馈写入参数无效')
+  }
+  let outcome
+  await db.runTransaction(async (transaction) => {
+    const collection = transaction.collection('skyFeedback')
+    const reference = collection.doc(documentId)
+    try {
+      const existing = await reference.get()
+      if (existing && existing.data) {
+        outcome = { created: false, id: documentId, data: existing.data }
+        return outcome
+      }
+    } catch (error) {
+      if (!isDocumentNotFound(error)) throw error
+    }
+    if (typeof reference.set === 'function') {
+      await reference.set({ data })
+      outcome = { created: true, id: documentId, data: { _id: documentId, ...data } }
+      return outcome
+    }
+    const result = await collection.add({ data })
+    outcome = { created: true, id: result._id, data: { _id: result._id, ...data } }
+    return outcome
+  })
+  return outcome
 }
 
 function legacySeenLevel(observedScore) {
@@ -224,6 +284,9 @@ module.exports = {
   buildLocationGrid,
   consensusSeenLevel,
   assessLocationGrid,
+  assessSubmissionFrequency,
+  feedbackDocumentId,
+  insertFeedbackOnce,
   evaluateSubmission,
   normalizeObservations
 }

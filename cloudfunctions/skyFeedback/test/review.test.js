@@ -6,6 +6,9 @@ const {
   buildLocationGrid,
   consensusSeenLevel,
   assessLocationGrid,
+  assessSubmissionFrequency,
+  feedbackDocumentId,
+  insertFeedbackOnce,
   evaluateSubmission,
   normalizeObservations
 } = require('../review')
@@ -201,4 +204,52 @@ test('downgrades a far-away coarse grid but accepts an adjacent grid', () => {
   })
   assert.equal(reviewed.reviewReasons.includes('location_grid_mismatch'), true)
   assert.equal(reviewed.reviewScore < 75, true)
+})
+
+test('downgrades rapid submissions spanning four cities but ignores older activity', () => {
+  const now = Date.UTC(2026, 7, 7, 12, 0, 0)
+  const recentRows = [
+    { cityCode: '101010100', submittedAt: new Date(now - 60 * 1000) },
+    { cityCode: '101020100', submittedAt: new Date(now - 2 * 60 * 1000) },
+    { cityCode: '101280101', submittedAt: new Date(now - 9 * 60 * 1000) }
+  ]
+  assert.deepEqual(
+    assessSubmissionFrequency(recentRows, { cityCode: '101190101', now }),
+    { score: 0.2, reason: 'cross_city_frequency_anomaly' }
+  )
+  assert.deepEqual(
+    assessSubmissionFrequency([
+      ...recentRows,
+      { cityCode: '101190101', submittedAt: new Date(now - 11 * 60 * 1000) }
+    ], { cityCode: '101190101', now: now + 10 * 60 * 1000 }),
+    { score: 1, reason: 'frequency_normal' }
+  )
+})
+
+test('atomically stores only one feedback row for the same user and forecast id', async () => {
+  const rows = new Map()
+  const db = {
+    runTransaction: async (callback) => callback({
+      collection: () => ({
+        doc: (id) => ({
+          get: async () => {
+            if (!rows.has(id)) throw new Error(`document with _id ${id} does not exist`)
+            return { data: rows.get(id) }
+          },
+          set: async ({ data }) => rows.set(id, { _id: id, ...data })
+        })
+      })
+    })
+  }
+  const documentId = feedbackDocumentId(validInput.forecastId, 'anonymous-user-hash')
+  assert.equal(documentId, feedbackDocumentId(validInput.forecastId, 'anonymous-user-hash'))
+  assert.notEqual(documentId, feedbackDocumentId(validInput.forecastId, 'other-user-hash'))
+
+  const first = await insertFeedbackOnce({ db, documentId, data: { forecastId: validInput.forecastId, reviewStatus: 'provisional' } })
+  const duplicate = await insertFeedbackOnce({ db, documentId, data: { forecastId: validInput.forecastId, reviewStatus: 'rejected' } })
+
+  assert.deepEqual(first, { created: true, id: documentId, data: rows.get(documentId) })
+  assert.deepEqual(duplicate, { created: false, id: documentId, data: rows.get(documentId) })
+  assert.equal(rows.size, 1)
+  assert.equal(rows.get(documentId).reviewStatus, 'provisional')
 })
