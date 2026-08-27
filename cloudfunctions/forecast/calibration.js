@@ -55,7 +55,7 @@ function normalizeStat(stat, cityCode, now) {
     accuracyRate !== null && accuracyRate >= 0 && accuracyRate <= 1 && expectedAccuracyRate !== null &&
     Math.abs(accuracyRate - expectedAccuracyRate) <= ACCURACY_RATE_TOLERANCE && isFreshThirtyDayStat(stat, now)
   if (!valid) return null
-  return { sampleCount, hitCount, accuracyRate, status: 'ready' }
+  return { sampleCount, hitCount, accuracyRate: expectedAccuracyRate, status: 'ready' }
 }
 
 function buildProfile(cityCode, rows, now = Date.now()) {

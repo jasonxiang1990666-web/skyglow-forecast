@@ -141,6 +141,23 @@ test('rejects a ready stat when its accuracy rate contradicts hit and sample cou
   assert.equal(result.status, 'pending')
 })
 
+test('uses the canonical hit ratio after accepting a rounded compatible accuracy rate', async () => {
+  const roundedProfile = await getCalibrationProfile(statsDatabase([
+    freshStat('sunset', { sampleCount: 60, hitCount: 33, accuracyRate: 0.54995 })
+  ], { collections: [], queries: [] }), '101020100')
+  const exactProfile = await getCalibrationProfile(statsDatabase([
+    freshStat('sunset', { sampleCount: 60, hitCount: 33, accuracyRate: 0.55 })
+  ], { collections: [], queries: [] }), '101020100')
+
+  const rounded = applyBoundedCalibration(50, 'sunset', roundedProfile)
+  const exact = applyBoundedCalibration(50, 'sunset', exactProfile)
+
+  assert.equal(roundedProfile.stats.sunset.accuracyRate, 33 / 60)
+  assert.deepEqual(rounded, exact)
+  assert.equal(rounded.probability, 51)
+  assert.equal(rounded.adjustment, 1)
+})
+
 test('falls back unchanged for malformed stats and database failures', async () => {
   const malformed = await getCalibrationProfile(statsDatabase([
     freshStat('sunset', { accuracyRate: null })
