@@ -51,15 +51,18 @@ function savePendingFeedback(storage, payload) {
   return true
 }
 
-function claimPendingFeedback(storage, { now = Date.now(), forecastId } = {}) {
+function claimPendingFeedback(storage, { now = Date.now(), forecastId, skyWindow } = {}) {
   const pending = readPendingFeedback(storage)
   if (!pending) return null
   const current = finite(now)
-  if (current === null || current < pending.windowStart || current > pending.windowEnd) {
+  if (pending.forecastId !== String(forecastId || '')) return null
+  const startAt = finite(skyWindow && skyWindow.startAt)
+  const endAt = finite(skyWindow && skyWindow.endAt)
+  if (startAt === null || endAt === null || endAt <= startAt) return null
+  if (current === null || current < startAt || current > endAt) {
     storage.removeStorageSync(STORAGE_KEY)
     return null
   }
-  if (pending.forecastId !== String(forecastId || '')) return null
   storage.removeStorageSync(STORAGE_KEY)
   return pending
 }

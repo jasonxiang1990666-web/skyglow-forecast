@@ -226,6 +226,14 @@ test('downgrades rapid submissions spanning four cities but ignores older activi
   )
 })
 
+test('downgrades conservatively when the recent-submission lookup is unavailable', () => {
+  const now = Date.UTC(2026, 7, 7, 12, 0, 0)
+  assert.deepEqual(
+    assessSubmissionFrequency([], { cityCode: '101190101', now, lookupAvailable: false }),
+    { score: 0.2, reason: 'frequency_lookup_unavailable' }
+  )
+})
+
 test('atomically stores only one feedback row for the same user and forecast id', async () => {
   const rows = new Map()
   const db = {

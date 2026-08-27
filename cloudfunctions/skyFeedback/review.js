@@ -62,7 +62,8 @@ function assessLocationGrid(clientLocationGrid, authoritativeLocationGrid) {
     : { score: 0.2, reason: 'location_grid_mismatch' }
 }
 
-function assessSubmissionFrequency(rows = [], { cityCode, now = Date.now() } = {}) {
+function assessSubmissionFrequency(rows = [], { cityCode, now = Date.now(), lookupAvailable = true } = {}) {
+  if (lookupAvailable === false) return { score: 0.2, reason: 'frequency_lookup_unavailable' }
   const submittedAt = finite(now)
   if (submittedAt === null) return { score: 1, reason: 'frequency_normal' }
   const recentCities = new Set([String(cityCode || '')].filter(Boolean))

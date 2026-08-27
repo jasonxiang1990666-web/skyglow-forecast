@@ -75,21 +75,57 @@ test('claims a matching in-window failure once and removes it before retrying', 
   const storage = memoryStorage()
   savePendingFeedback(storage, payload)
 
-  assert.equal(claimPendingFeedback(storage, { now: 1500, forecastId: 'another-forecast' }), null)
+  assert.equal(claimPendingFeedback(storage, {
+    now: 1500,
+    forecastId: 'another-forecast',
+    skyWindow: { startAt: 1000, endAt: 2000 }
+  }), null)
   assert.deepEqual(readPendingFeedback(storage), storedPayload)
 
-  assert.deepEqual(claimPendingFeedback(storage, { now: 1500, forecastId: payload.forecastId }), storedPayload)
+  assert.deepEqual(claimPendingFeedback(storage, {
+    now: 1500,
+    forecastId: payload.forecastId,
+    skyWindow: { startAt: 1000, endAt: 2000 }
+  }), storedPayload)
   assert.equal(readPendingFeedback(storage), null)
-  assert.equal(claimPendingFeedback(storage, { now: 1500, forecastId: payload.forecastId }), null)
+  assert.equal(claimPendingFeedback(storage, {
+    now: 1500,
+    forecastId: payload.forecastId,
+    skyWindow: { startAt: 1000, endAt: 2000 }
+  }), null)
 })
 
-test('drops expired failures and clears a matching failure after success', () => {
+test('claims a stored failure only while the loaded authoritative window is active', () => {
   const storage = memoryStorage()
   savePendingFeedback(storage, payload)
-  assert.equal(claimPendingFeedback(storage, { now: 2001, forecastId: payload.forecastId }), null)
-  assert.equal(readPendingFeedback(storage), null)
 
+  assert.deepEqual(claimPendingFeedback(storage, {
+    now: 3500,
+    forecastId: payload.forecastId,
+    skyWindow: { startAt: 3000, endAt: 4000 }
+  }), storedPayload)
+  assert.equal(readPendingFeedback(storage), null)
+})
+
+test('does not claim a stored failure when the loaded authoritative window is missing or closed', () => {
+  const storage = memoryStorage()
   savePendingFeedback(storage, payload)
+
+  assert.equal(claimPendingFeedback(storage, { now: 1500, forecastId: payload.forecastId, skyWindow: null }), null)
+  assert.deepEqual(readPendingFeedback(storage), storedPayload)
+
+  assert.equal(claimPendingFeedback(storage, {
+    now: 1500,
+    forecastId: payload.forecastId,
+    skyWindow: { startAt: 1000, endAt: 1400 }
+  }), null)
+  assert.equal(readPendingFeedback(storage), null)
+})
+
+test('clears a matching failure after success', () => {
+  const storage = memoryStorage()
+  savePendingFeedback(storage, payload)
+
   assert.equal(clearPendingFeedback(storage, 'another-forecast'), false)
   assert.notEqual(readPendingFeedback(storage), null)
   assert.equal(clearPendingFeedback(storage, payload.forecastId), true)

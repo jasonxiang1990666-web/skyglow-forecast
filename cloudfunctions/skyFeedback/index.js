@@ -50,10 +50,10 @@ async function getRecentSubmissions(anonymousUserHash) {
       .orderBy('submittedAt', 'desc')
       .limit(20)
       .get()
-    return Array.isArray(result.data) ? result.data : []
+    return { rows: Array.isArray(result.data) ? result.data : [], lookupAvailable: true }
   } catch (error) {
     console.warn('feedback frequency lookup failed', error)
-    return []
+    return { rows: [], lookupAvailable: false }
   }
 }
 
@@ -77,10 +77,12 @@ async function submit(event, openid) {
   const consensus = await getConsensus(eventKey)
   const consensusDelta = consensus.average === null ? null : Math.abs(input.seenLevel - consensus.average)
   const locationReview = assessLocationGrid(input.locationGrid, forecastRecord.locationGrid)
-  const frequencyReview = assessSubmissionFrequency(
-    await getRecentSubmissions(anonymousUserHash),
-    { cityCode: forecastRecord.cityCode, now }
-  )
+  const recentSubmissions = await getRecentSubmissions(anonymousUserHash)
+  const frequencyReview = assessSubmissionFrequency(recentSubmissions.rows, {
+    cityCode: forecastRecord.cityCode,
+    now,
+    lookupAvailable: recentSubmissions.lookupAvailable
+  })
   const review = evaluateSubmission({
     inWindow: true,
     locationScore: locationReview.score,

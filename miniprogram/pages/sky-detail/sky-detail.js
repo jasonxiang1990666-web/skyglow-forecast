@@ -431,7 +431,11 @@ Page({
   retryPendingFeedback() {
     const selected = this.data.selected
     if (!selected || !selected.forecastId) return
-    const pending = claimPendingFeedback(wx, { now: Date.now(), forecastId: selected.forecastId })
+    const pending = claimPendingFeedback(wx, {
+      now: Date.now(),
+      forecastId: selected.forecastId,
+      skyWindow: this.data.skyWindow
+    })
     if (!pending) return
     this.setData({ 'feedback.submitting': true, 'feedback.message': '正在重试上次未提交的反馈…' })
     submitSkyFeedback(pending).then((result) => {
