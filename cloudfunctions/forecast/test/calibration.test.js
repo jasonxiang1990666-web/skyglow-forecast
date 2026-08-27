@@ -129,6 +129,18 @@ test('reads fresh 30-day accuracy stats by machine city code', async () => {
   assert.deepEqual(calls.queries, [{ cityCode: '101020100', windowDays: 30 }])
 })
 
+test('rejects a ready stat when its accuracy rate contradicts hit and sample counts', async () => {
+  const profile = await getCalibrationProfile(statsDatabase([
+    freshStat('sunset', { hitCount: 0, accuracyRate: 1 })
+  ], { collections: [], queries: [] }), '101020100')
+
+  const result = applyBoundedCalibration(64, 'sunset', profile)
+
+  assert.equal(result.probability, 64)
+  assert.equal(result.adjustment, 0)
+  assert.equal(result.status, 'pending')
+})
+
 test('falls back unchanged for malformed stats and database failures', async () => {
   const malformed = await getCalibrationProfile(statsDatabase([
     freshStat('sunset', { accuracyRate: null })
@@ -157,9 +169,9 @@ test('falls back unchanged for malformed stats and database failures', async () 
 
 test('applies separate accuracy stats to sunrise, sunset, and fire-cloud probabilities', async () => {
   const profile = await getCalibrationProfile(statsDatabase([
-    freshStat('sunrise', { accuracyRate: 0.2 }),
-    freshStat('sunset', { accuracyRate: 0.8 }),
-    freshStat('fireCloud', { accuracyRate: 0.5 })
+    freshStat('sunrise', { hitCount: 6, accuracyRate: 0.2 }),
+    freshStat('sunset', { hitCount: 24, accuracyRate: 0.8 }),
+    freshStat('fireCloud', { hitCount: 15, accuracyRate: 0.5 })
   ], { collections: [], queries: [] }), '101020100')
 
   assert.equal(applyBoundedCalibration(50, '朝霞', profile).probability, 47)

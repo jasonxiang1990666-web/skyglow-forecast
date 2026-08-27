@@ -3,6 +3,7 @@ const WINDOW_DAYS = 30
 const DAY = 24 * 60 * 60 * 1000
 const MAX_STATS_AGE = DAY + 5 * 60 * 1000
 const COVERAGE_SKEW = 5 * 60 * 1000
+const ACCURACY_RATE_TOLERANCE = 0.0001
 const SCENE_TYPES = ['sunrise', 'sunset', 'fireCloud']
 
 function finite(value) {
@@ -44,11 +45,15 @@ function normalizeStat(stat, cityCode, now) {
   const sampleCount = finite(stat && stat.sampleCount)
   const accuracyRate = finite(stat && stat.accuracyRate)
   const hitCount = finite(stat && stat.hitCount)
+  const expectedAccuracyRate = Number.isInteger(sampleCount) && sampleCount > 0 && Number.isInteger(hitCount)
+    ? hitCount / sampleCount
+    : null
   const valid = stat && stat.cityCode === cityCode && SCENE_TYPES.includes(stat.sceneType) &&
     stat.windowDays === WINDOW_DAYS && stat.status === 'ready' &&
     Number.isInteger(sampleCount) && sampleCount >= MIN_CALIBRATION_SAMPLES &&
     Number.isInteger(hitCount) && hitCount >= 0 && hitCount <= sampleCount &&
-    accuracyRate !== null && accuracyRate >= 0 && accuracyRate <= 1 && isFreshThirtyDayStat(stat, now)
+    accuracyRate !== null && accuracyRate >= 0 && accuracyRate <= 1 && expectedAccuracyRate !== null &&
+    Math.abs(accuracyRate - expectedAccuracyRate) <= ACCURACY_RATE_TOLERANCE && isFreshThirtyDayStat(stat, now)
   if (!valid) return null
   return { sampleCount, hitCount, accuracyRate, status: 'ready' }
 }
