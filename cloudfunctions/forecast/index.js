@@ -161,7 +161,7 @@ exports.main = async (event) => {
     longitude: hasCoordinates ? requestedLongitude : location.lon,
     targets: modelTargets
   })
-  const calibrationProfile = await getCalibrationProfile(databaseOrNull(), resolvedCity)
+  const calibrationProfile = await getCalibrationProfile(databaseOrNull(), location.id)
   const view = buildForecastView({ city: resolvedCity, locationLabel, hourly, daily, alerts, airQuality, now, modelReferences, calibrationProfile })
   let enriched = { forecast: view, records: [] }
   try {

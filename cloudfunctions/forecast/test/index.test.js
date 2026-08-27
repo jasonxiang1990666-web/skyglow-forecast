@@ -5,7 +5,7 @@ const Module = require('node:module')
 const INDEX_PATH = require.resolve('../index')
 
 function loadForecastMain() {
-  const calls = { city: 0, coordinates: [], records: [] }
+  const calls = { city: 0, coordinates: [], records: [], calibrationCityCodes: [] }
   const location = { id: '101020100', adm2: 'Shanghai', name: 'Shanghai', lat: '31.23', lon: '121.47' }
   const forecast = {
     city: 'Shanghai',
@@ -42,7 +42,12 @@ function loadForecastMain() {
     './places': { getNearbyViewingSpots: () => [] },
     './featured-spots': { getFeaturedViewingSpots: () => [], getFeaturedViewingSpot: () => ({}) },
     './model-live': { getLiveModelReferences: async () => ({}) },
-    './calibration': { getCalibrationProfile: async () => null }
+    './calibration': {
+      getCalibrationProfile: async (_db, cityCode) => {
+        calls.calibrationCityCodes.push(cityCode)
+        return null
+      }
+    }
   }
   const load = Module._load
   Module._load = function (request, parent, isMain) {
@@ -83,6 +88,16 @@ test('numeric coordinate strings still use coordinate lookup', async () => {
     await harness.main({ city: 'Shanghai', latitude: '31.2304', longitude: '121.4737' })
     assert.equal(harness.calls.city, 0)
     assert.deepEqual(harness.calls.coordinates, [[31.2304, 121.4737]])
+  } finally {
+    harness.restore()
+  }
+})
+
+test('uses the resolved machine city code for bounded calibration', async () => {
+  const harness = loadForecastMain()
+  try {
+    await harness.main({ city: '上海' })
+    assert.deepEqual(harness.calls.calibrationCityCodes, ['101020100'])
   } finally {
     harness.restore()
   }
