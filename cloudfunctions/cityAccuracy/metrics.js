@@ -56,8 +56,7 @@ function identity(row) {
 }
 
 function observedTime(row) {
-  const observedAt = finite(row && row.observedAt)
-  return observedAt === null ? finite(row && row.windowStart) : observedAt
+  return finite(row && row.observedAt)
 }
 
 function normalizedObservation(row, cutoff, now) {

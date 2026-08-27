@@ -87,6 +87,14 @@ test('supports legacy observedScore and ignores incomplete observations', () => 
   assert.deepEqual(result.sunset, { sampleCount: 2, hitCount: 2, accuracyRate: null, windowDays: 30, status: 'collecting' })
 })
 
+test('excludes historical observations without observedAt instead of treating windowStart as observed time', () => {
+  const result = aggregateAccuracy([
+    observation({ id: 'missing-observed-at', observedAt: null, windowStart: NOW - DAY })
+  ], NOW)
+
+  assert.deepEqual(result.sunset, { sampleCount: 0, hitCount: 0, accuracyRate: null, windowDays: 30, status: 'collecting' })
+})
+
 test('returns collecting structures for a city with no observations', () => {
   assert.deepEqual(aggregateAccuracy([], NOW), {
     sunrise: { sampleCount: 0, hitCount: 0, accuracyRate: null, windowDays: 30, status: 'collecting' },
